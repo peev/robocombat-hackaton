@@ -189,6 +189,14 @@ the OpenClaw Control UI.
 
 See [PROGRESS.md](./PROGRESS.md) for acceptance criteria.
 
+## Hackathon submission pack
+
+Copy/paste BuilderBase answers, pitch deck, and demo video script:
+
+- [docs/SUBMISSION.md](./docs/SUBMISSION.md) — all form fields
+- [docs/pitch.html](./docs/pitch.html) / [docs/PITCH.md](./docs/PITCH.md) — pitch deck
+- [docs/DEMO_VIDEO_SCRIPT.md](./docs/DEMO_VIDEO_SCRIPT.md) — &lt;2 min video shot list
+
 ## Asset credits
 
 - HDRI sky and PBR textures: [Poly Haven](https://polyhaven.com) (CC0)
