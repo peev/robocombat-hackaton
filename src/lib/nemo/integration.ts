@@ -14,6 +14,7 @@ import { promisify } from "util";
 import { runAutonomousEvaluation } from "@/lib/ai/evaluator";
 import type { MissionId } from "@/lib/simulation/types";
 import type { RobotId } from "@/lib/robots/profiles";
+import { getOpenClawStatus } from "@/lib/agent/ops";
 
 const execFileAsync = promisify(execFile);
 
@@ -43,12 +44,14 @@ async function commandExists(cmd: string): Promise<boolean> {
 }
 
 export async function getNemoStatus(): Promise<NemoStatus> {
-  const [nemoclawDetected, openclawDetected, openshellDetected] =
+  const [nemoclawDetected, openclawOnPath, openshellDetected, openclaw] =
     await Promise.all([
       commandExists("nemoclaw"),
       commandExists("openclaw"),
       commandExists("openshell"),
+      getOpenClawStatus(),
     ]);
+  const openclawDetected = openclawOnPath || openclaw.installed;
 
   const discordConfigured = Boolean(
     process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_CHANNEL_ID

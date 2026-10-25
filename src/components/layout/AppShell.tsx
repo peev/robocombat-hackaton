@@ -6,7 +6,9 @@ import type { CameraMode } from "@/components/game/GameCamera";
 import type { DirectorFocus } from "@/components/game/DirectorCamera";
 import { GpuPanel } from "@/components/dashboard/GpuPanel";
 import { LivePerformance } from "@/components/dashboard/LivePerformance";
+import { MissionBenchmark } from "@/components/dashboard/MissionBenchmark";
 import { Leaderboard } from "@/components/dashboard/Leaderboard";
+import { AgentPanel, type AgentRun } from "@/components/dashboard/AgentPanel";
 import type { ExperimentResult, MissionId } from "@/lib/simulation/types";
 import type { RobotId } from "@/lib/robots/profiles";
 import { ROBOT_IDS, getRobot, DISCLAIMER } from "@/lib/robots/profiles";
@@ -15,14 +17,14 @@ type PlayMode = "free-play" | "autonomous" | "compare" | "ai-evaluation" | "demo
 
 /** Simulated seconds per real second during playback. */
 const PLAYBACK_RATE: Record<MissionId, number> = { "fire-rescue": 2, "deep-mine": 3 };
-/** Demo timeline: 42 s per mission + 3 s transition + 3 s finale = 90 s from click to results. */
-const DEMO_MISSION_SEC = 42;
-const DEMO_GAP_MS = 3000;
+/** Demo timeline: (30 s mission + 6 s benchmark) × 2 = 72 s from click to final results. */
+const DEMO_MISSION_SEC = 30;
+const DEMO_BENCH_MS = 6000;
 const DEMO_FIRE = { seed: 42, smokeDensity: 0.4 };
 const DEMO_MINE = { seed: 100, incline: 0.25 };
 
 interface DemoState {
-  phase: "fire" | "mine" | "done";
+  phase: "fire" | "fire-bench" | "mine" | "mine-bench" | "done";
   fire: ExperimentResult | null;
   mine: ExperimentResult | null;
   aiReady: boolean;
@@ -106,6 +108,9 @@ export function AppShell() {
   const [focus, setFocus] = useState<DirectorFocus | null>(null);
   const [cardVisible, setCardVisible] = useState(false);
   const demoRun = useRef(0);
+  const [agentRun, setAgentRun] = useState<AgentRun | null>(null);
+  const [agentQueueLen, setAgentQueueLen] = useState(0);
+  const agentQueue = useRef<AgentRun[]>([]);
 
   const demoActive = demo !== null;
   // In the demo each mission replay is stretched/compressed to fill its fixed slot.
@@ -126,6 +131,56 @@ export function AppShell() {
     },
     [seek]
   );
+
+  /* ------------------------------------------- always-on agent replays */
+
+  const watchAgentRun = useCallback(
+    async (run: AgentRun) => {
+      const res = await fetch(`/api/agent/replay/${run.experimentId}`);
+      if (!res.ok) return;
+      const { experiment } = (await res.json()) as { experiment: ExperimentResult };
+      setShowIntro(false);
+      setPlayMode("autonomous");
+      setCameraMode("third");
+      setMission(run.mission);
+      setAgentRun(run);
+      startReplay(experiment);
+    },
+    [startReplay]
+  );
+
+  const playNextAgentRun = useCallback(() => {
+    const next = agentQueue.current.shift();
+    setAgentQueueLen(agentQueue.current.length);
+    if (next) watchAgentRun(next);
+  }, [watchAgentRun]);
+
+  const liveRef = useRef({ demoActive, busy, playing });
+  liveRef.current = { demoActive, busy, playing };
+
+  const onNewAgentRuns = useCallback(
+    (runs: AgentRun[]) => {
+      if (liveRef.current.demoActive) return;
+      const chat = runs.filter((r) => r.source === "openclaw-chat");
+      const rest = runs.filter((r) => r.source !== "openclaw-chat");
+      agentQueue.current = [...chat, ...agentQueue.current, ...rest].slice(0, 8);
+      setAgentQueueLen(agentQueue.current.length);
+      if (chat.length || (!liveRef.current.playing && !liveRef.current.busy)) playNextAgentRun();
+    },
+    [playNextAgentRun]
+  );
+
+  useEffect(() => {
+    if (demoActive || playing || !agentQueue.current.length) return;
+    const id = window.setTimeout(playNextAgentRun, 1500);
+    return () => clearTimeout(id);
+  }, [demoActive, playing, playNextAgentRun]);
+
+  const clearAgentRuns = useCallback(() => {
+    agentQueue.current = [];
+    setAgentQueueLen(0);
+    setAgentRun(null);
+  }, []);
 
   useEffect(() => {
     fetch("/api/evaluate")
@@ -179,6 +234,7 @@ export function AppShell() {
 
   const startDemo = useCallback(async () => {
     const run = ++demoRun.current;
+    clearAgentRuns();
     setShowIntro(false);
     setPaused(false);
     setPlayMode("demo");
@@ -209,36 +265,52 @@ export function AppShell() {
     if (run !== demoRun.current) return;
     setDemo((d) => (d ? { ...d, fire } : d));
     startReplay(fire);
-  }, [showCard, startReplay]);
+  }, [showCard, startReplay, clearAgentRuns]);
 
-  // Advance demo phases when a replay finishes.
+  // Advance demo phases: mission replay → benchmark scorecard → next mission.
+  const demoRef = useRef(demo);
+  demoRef.current = demo;
+  const phase = demo?.phase ?? null;
+  const replayEnded = !!result && !playing && replayTime >= result.durationSec;
   useEffect(() => {
-    if (!demo || playing || !result || replayTime < result.durationSec) return;
+    if (!phase) return;
     const run = demoRun.current;
-    if (demo.phase === "fire") {
+    if (phase === "fire" && replayEnded) {
+      setDemo((d) => (d ? { ...d, phase: "fire-bench" } : d));
+      return;
+    }
+    if (phase === "mine" && replayEnded) {
+      setDemo((d) => (d ? { ...d, phase: "mine-bench" } : d));
+      return;
+    }
+    if (phase === "fire-bench") {
+      const mineReady = demoRef.current?.mine
+        ? Promise.resolve(demoRef.current.mine)
+        : fetchExperiment("deep-mine", DEMO_MINE);
       const id = window.setTimeout(async () => {
-        const mine = demo.mine ?? (await fetchExperiment("deep-mine", DEMO_MINE));
+        const mine = await mineReady;
         if (run !== demoRun.current) return;
         setMission("deep-mine");
         setDemo((d) => (d ? { ...d, phase: "mine", mine } : d));
         showCard();
         startReplay(mine);
-      }, DEMO_GAP_MS);
+      }, DEMO_BENCH_MS);
       return () => clearTimeout(id);
     }
-    if (demo.phase === "mine") {
+    if (phase === "mine-bench") {
       const id = window.setTimeout(() => {
         if (run === demoRun.current) setDemo((d) => (d ? { ...d, phase: "done" } : d));
-      }, DEMO_GAP_MS);
+      }, DEMO_BENCH_MS);
       return () => clearTimeout(id);
     }
-  }, [demo, playing, result, replayTime, showCard, startReplay]);
+  }, [phase, replayEnded, showCard, startReplay]);
 
   /* --------------------------------------------------- other run modes */
 
   const runExperiment = useCallback(
     async (mode: PlayMode, opts?: { batchSize?: number }) => {
       setBusy(true);
+      clearAgentRuns();
       setPlayMode(mode);
       setShowIntro(false);
       try {
@@ -300,7 +372,7 @@ export function AppShell() {
         setBusy(false);
       }
     },
-    [mission, selectedRobot, startReplay]
+    [mission, selectedRobot, startReplay, clearAgentRuns]
   );
 
   const canvasMode: CanvasMode = demoActive
@@ -352,6 +424,7 @@ export function AppShell() {
               className="btn"
               disabled={busy}
               onClick={() => {
+                clearAgentRuns();
                 setPlayMode("free-play");
                 setResult(null);
                 setPlaying(false);
@@ -422,6 +495,25 @@ export function AppShell() {
             />
           )}
 
+          {agentRun && result && !demoActive && (
+            <div className="pointer-events-none absolute left-6 top-6 z-10 max-w-[520px]">
+              <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.4em] text-[#76b900]">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[#76b900]" />
+                OpenClaw agent run ·{" "}
+                {agentRun.source === "openclaw-cron"
+                  ? "scheduled sweep"
+                  : agentRun.source === "openclaw-heartbeat"
+                    ? "heartbeat"
+                    : "requested in chat"}
+                {agentQueueLen > 0 && <span className="text-white/40">· {agentQueueLen} queued</span>}
+              </p>
+              <h2 className="font-display text-3xl tracking-[0.08em] text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)]">
+                {MISSION_CARD[agentRun.mission].title}
+              </h2>
+              <p className="text-sm text-white/80 drop-shadow">{agentRun.body}</p>
+            </div>
+          )}
+
           {result && !demoActive && (
             <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-xs">
               <button type="button" className="text-white/80" onClick={() => setPlaying((p) => !p)}>
@@ -447,6 +539,7 @@ export function AppShell() {
         </div>
 
         <aside className="flex w-[380px] shrink-0 flex-col gap-2 overflow-y-auto border-l border-white/10 bg-[#0d0d0d] p-2">
+          {!demoActive && <AgentPanel onNewRuns={onNewAgentRuns} onWatch={watchAgentRun} />}
           <LivePerformance result={result} time={replayTime} />
           <GpuPanel />
           {!demoActive && (
@@ -541,7 +634,7 @@ function DemoHud({
         }`}
       >
         <p className="text-[11px] uppercase tracking-[0.5em] text-[#e10600]">
-          Mission {demo.phase === "fire" ? "01" : "02"}
+          Mission {demo.phase.startsWith("fire") ? "01" : "02"}
         </p>
         <h2 className="font-display text-6xl tracking-[0.12em] text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.9)]">
           {card.title}
@@ -561,7 +654,7 @@ function DemoHud({
       </div>
 
       {/* Lower third: who the camera is following */}
-      {robot && demo.phase !== "done" && (
+      {robot && (demo.phase === "fire" || demo.phase === "mine") && (
         <div className="absolute bottom-10 left-8">
           <div className="border-l-4 border-[#e10600] bg-gradient-to-r from-black/80 to-transparent py-2 pl-3 pr-16">
             <p className="text-[10px] uppercase tracking-[0.35em] text-white/50">
@@ -572,8 +665,11 @@ function DemoHud({
         </div>
       )}
 
+      {demo.phase === "fire-bench" && demo.fire && <MissionBenchmark result={demo.fire} index={1} />}
+      {demo.phase === "mine-bench" && demo.mine && <MissionBenchmark result={demo.mine} index={2} />}
+
       {/* Progress */}
-      {demo.phase !== "done" && (
+      {(demo.phase === "fire" || demo.phase === "mine") && (
         <div className="absolute bottom-4 left-8 right-8 h-[3px] bg-white/10">
           <div className="h-full bg-[#e10600]" style={{ width: `${progress * 100}%` }} />
         </div>
