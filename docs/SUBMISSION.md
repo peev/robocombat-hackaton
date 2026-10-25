@@ -63,18 +63,24 @@ https://github.com/peev/robocombat-hackaton
 
 ## Walk us through getting started with the DGX Spark
 
-**Hardware:** Dell Pro Max with GB10 (NVIDIA Grace Blackwell), 128 GB unified memory, DGX OS / AI Enterprise image as provided at the venue. We treat it as the **BlackBox evaluation computer** that would sit deskside in a lab today and eventually ride on / next to the humanoid under test.
+We used the venue **Dell Pro Max with GB10** (NVIDIA Grace Blackwell superchip, 128 GB unified memory) running the preloaded **DGX OS + AI Enterprise** stack. For us the Spark/GB10 is the BlackBox: a deskside AI computer that runs all agent reasoning and our humanoid-mission sim locally — no cloud LLM calls.
 
-**Software stack we used**
-1. Boot GB10 → confirm `nvidia-smi` sees the GPU.
-2. Start local inference: `OLLAMA_FLASH_ATTENTION=1 OLLAMA_KEEP_ALIVE=-1 ollama serve` then `ollama pull gpt-oss:20b` (~14 GB on GPU).
-3. Lab app (the game/sim + dashboard): `npm install && npm run build && npm start` → `http://127.0.0.1:3000` (Next.js + R3F 3D missions + deterministic engine).
-4. Always-on agent: `./scripts/setup-openclaw.sh` onboards OpenClaw to local Ollama, installs the `robocombat-lab` skill + BlackBox persona, registers the 15‑min regression sweep, and runs `openclaw-gateway` as a systemd user service (`loginctl enable-linger` so it survives logout).
-5. Optional hardened path: NemoClaw Express/`nemoclaw.sh` with `NEMOCLAW_AGENT=openclaw`, `NEMOCLAW_PROVIDER=ollama`, `NEMOCLAW_MODEL=gpt-oss:20b`, sandbox name `blackbox`, custom L7 policy preset, plus `scripts/sandbox-bridge.mjs` so the sandbox reaches the lab API only over the Docker bridge.
+**Getting started (what we actually did)**
+1. **Hardware check** — Boot, confirm Wi‑Fi, `nvidia-smi` shows the GB10 GPU. Unified memory is what let us keep Ollama + Next.js + Three.js 3D viz + OpenClaw resident together.
+2. **Local inference** — Ollama on the GB10 GPU: `OLLAMA_FLASH_ATTENTION=1 OLLAMA_KEEP_ALIVE=-1 ollama serve`, then `ollama pull gpt-oss:20b` (~14 GB). This is the only model in the agent runtime path.
+3. **App / “game” lab** — Node app on the box: `npm install && npm run build && npm start` → `http://127.0.0.1:3000`. Stack: Next.js dashboard + React Three Fiber / Three.js mission worlds + a headless deterministic sim the agent scores from measured telemetry.
+4. **Always-on agent (OpenClaw)** — `./scripts/setup-openclaw.sh`: onboard to local Ollama, install `robocombat-lab` skill + BlackBox persona, register a 15‑min regression sweep, run `openclaw-gateway` as a systemd user service; `loginctl enable-linger` so it survives logout. Tool-search off + `coding` tool profile so the 20B model’s tool calls stay reliable.
+5. **Hardened path (NemoClaw + OpenShell)** — `nemoclaw.sh` with `NEMOCLAW_AGENT=openclaw`, `NEMOCLAW_PROVIDER=ollama`, `NEMOCLAW_MODEL=gpt-oss:20b`, sandbox `blackbox`. Custom deny-by-default L7 policy allows only `GET/POST /api/agent/**` via `curl`. `sandbox-bridge.mjs` exposes the lab API on the Docker bridge so the sandbox can reach the host app without opening the whole machine. Dashboard switches **OpenClaw · host** vs **NemoClaw · OpenShell sandbox**.
 
-**What worked well:** DGX OS + Ollama on the GB10 GPU made local 20B inference straightforward; OpenClaw’s coding tool profile + disabled tool-search kept tool calls reliable on a smaller local model; the 3D sim made the agent’s work visible for demo and for operators.
+**What worked well for NVIDIA to keep**
+- DGX OS + `nvidia-smi` made “prove it’s local GPU” easy for judges.
+- Ollama on GB10 with flash attention / keep-alive was a fast path to a working always-on agent.
+- NemoClaw + OpenShell’s observable `policy_denied` responses made the security story demoable (critical for an evaluation device next to robots).
 
-**Friction for NVIDIA:** First-time NemoClaw/OpenShell policy authoring and bridging host localhost services into the sandbox took iteration; a one-click “expose selected host ports to sandbox” recipe would have saved time.
+**Friction / ask for NVIDIA**
+- Model pull time ate early hacking hours — a pre-cached agent-ready model (or shared venue cache) on every GB10 would help.
+- Bridging a host localhost Next.js app into OpenShell took custom work; a documented one-click “expose these host ports to the sandbox” recipe would have saved a lot of time.
+- Custom L7 policy authoring was powerful but steep under a same-day deadline; a GUI or starter template for “agent may only hit these localhost APIs” would accelerate teams.
 
 ---
 
