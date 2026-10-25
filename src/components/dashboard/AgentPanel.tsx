@@ -63,6 +63,7 @@ export function AgentPanel({
   const [thinking, setThinking] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [runtime, setRuntime] = useState<"openclaw" | "nemoclaw">("openclaw");
+  const [reply, setReply] = useState<{ question: string; text: string; seconds: number } | null>(null);
   const seen = useRef<Set<string> | null>(null);
   const newRunsRef = useRef(onNewRuns);
   newRunsRef.current = onNewRuns;
@@ -122,6 +123,7 @@ export function AgentPanel({
       });
       const data = await res.json();
       if (!data.ok) setError(data.error ?? "Agent error");
+      else setReply({ question: message, text: data.reply, seconds: Math.round(data.latencyMs / 1000) });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Agent error");
     } finally {
@@ -209,6 +211,17 @@ export function AgentPanel({
         </p>
       )}
       {error && <p className="text-[10px] text-[#e10600]">{error}</p>}
+      {reply && !thinking && (
+        <div className="max-h-[220px] overflow-y-auto rounded-sm border border-[#76b900]/40 bg-[#76b900]/[0.06] p-2">
+          <p className="text-[9px] uppercase tracking-wider text-white/40">
+            You: {reply.question.slice(0, 80)}
+          </p>
+          <p className="mt-1 text-[9px] uppercase tracking-wider text-[#76b900]">
+            BlackBox · {runtime === "nemoclaw" ? "NemoClaw sandbox" : "OpenClaw"} · {reply.seconds}s on GB10
+          </p>
+          <p className="mt-0.5 whitespace-pre-line text-[11px] leading-snug text-white/90">{reply.text}</p>
+        </div>
+      )}
 
       <ul className="flex max-h-[300px] flex-col gap-1 overflow-y-auto pr-1">
         {log.length === 0 && <li className="text-[10px] text-white/40">No agent activity yet.</li>}
