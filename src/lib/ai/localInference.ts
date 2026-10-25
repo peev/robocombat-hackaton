@@ -16,6 +16,10 @@ const OLLAMA_URL = process.env.LOCAL_LLM_URL ?? "http://127.0.0.1:11434";
 const OPENAI_COMPAT_URL =
   process.env.LOCAL_OPENAI_COMPAT_URL ?? "http://127.0.0.1:8000/v1";
 const MODEL = process.env.LOCAL_LLM_MODEL ?? "";
+/** Reasoning level for thinking models (e.g. gpt-oss: "low" | "medium" | "high"). */
+const THINK = process.env.LOCAL_LLM_THINK ?? "";
+const MAX_TOKENS = Number(process.env.LOCAL_LLM_MAX_TOKENS ?? 600);
+const TIMEOUT_MS = Number(process.env.LOCAL_LLM_TIMEOUT_MS ?? 45000);
 
 async function tryOllama(
   prompt: string,
@@ -38,9 +42,10 @@ async function tryOllama(
             { role: "system", content: system },
             { role: "user", content: prompt },
           ],
-          options: { temperature: 0.2, num_predict: 600 },
+          ...(THINK ? { think: THINK } : {}),
+          options: { temperature: 0.2, num_predict: MAX_TOKENS },
         }),
-        signal: AbortSignal.timeout(45000),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (!res.ok) continue;
       const data = (await res.json()) as {
@@ -90,9 +95,9 @@ async function tryOpenAiCompat(
           { role: "user", content: prompt },
         ],
         temperature: 0.2,
-        max_tokens: 600,
+        max_tokens: MAX_TOKENS,
       }),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as {

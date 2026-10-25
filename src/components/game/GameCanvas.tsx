@@ -1,14 +1,20 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Loader } from "@react-three/drei";
+import { EffectComposer, Bloom, N8AO, SMAA, ToneMapping, Vignette, Noise } from "@react-three/postprocessing";
+import { ToneMappingMode, BlendFunction } from "postprocessing";
+import * as THREE from "three";
 import { HumanoidRobot } from "@/components/robots/HumanoidRobot";
 import { FireRescueWorld } from "@/components/missions/FireRescueWorld";
 import { DeepMineWorld } from "@/components/missions/DeepMineWorld";
 import { GameCamera, type CameraMode } from "./GameCamera";
+import { DirectorCamera, type DirectorFocus } from "./DirectorCamera";
 import type { ExperimentResult, MissionId, RobotTelemetry } from "@/lib/simulation/types";
 import type { RobotId } from "@/lib/robots/profiles";
-import { getRobot } from "@/lib/robots/profiles";
+import { ROBOT_IDS, getRobot } from "@/lib/robots/profiles";
+import { createPose, samplePoses, snapshotAt, type RobotPose } from "@/lib/simulation/replay";
 
 export interface LiveRobot {
   robotId: RobotId;
@@ -19,157 +25,103 @@ export interface LiveRobot {
   carrying: boolean;
 }
 
+export type CanvasMode = "free-play" | "replay" | "cinematic" | "director";
+
 interface GameCanvasProps {
   mission: MissionId;
-  mode: "free-play" | "replay" | "cinematic";
+  mode: CanvasMode;
   selectedRobot: RobotId;
   cameraMode: CameraMode;
   result?: ExperimentResult | null;
+  /** Coarse replay time for world state (fire, deposits). */
   replayTime?: number;
-  smokeDensity?: number;
-  lighting?: number;
-  onRobotChange?: (id: RobotId) => void;
+  /** Precise replay time read every frame for robot motion. */
+  replayClock?: { current: number };
   freeRobots?: LiveRobot[];
   cinematicPhase?: number;
   quality?: "high" | "low";
+  onDirectorFocus?: (f: DirectorFocus) => void;
+  /** Robot the director camera is featuring; only it gets a floating label. */
+  focusRobot?: RobotId | null;
 }
 
-function ReplayScene({
+function MissionWorld({
   mission,
   result,
   replayTime,
-  selectedRobot,
-  cameraMode,
-  smokeDensity = 0.35,
-  lighting = 0.7,
-  cinematicPhase = 0,
+  poses,
+  quality,
 }: {
   mission: MissionId;
-  result: ExperimentResult;
+  result?: ExperimentResult | null;
   replayTime: number;
-  selectedRobot: RobotId;
-  cameraMode: CameraMode;
-  smokeDensity?: number;
-  lighting?: number;
-  cinematicPhase?: number;
+  poses: Map<RobotId, RobotPose>;
+  quality: "high" | "low";
 }) {
-  const snap = useMemo(() => {
-    const snaps = result.snapshots;
-    if (!snaps.length) return result.final;
-    let best = snaps[0];
-    for (const s of snaps) {
-      if (s.time <= replayTime) best = s;
-      else break;
-    }
-    return best;
-  }, [result, replayTime]);
-
-  const selected = snap.robots.find((r) => r.robotId === selectedRobot) ?? snap.robots[0];
-  const target: [number, number, number] = selected
-    ? [selected.position.x, selected.position.y, selected.position.z]
-    : [0, 0, 0];
-
-  return (
-    <>
-      {mission === "fire-rescue" ? (
-        <FireRescueWorld fire={snap.world.fire} smokeDensity={smokeDensity} />
-      ) : (
-        <DeepMineWorld
-          deposits={snap.world.deposits}
-          lighting={lighting}
-          collectionPoint={snap.world.collectionPoint}
-        />
-      )}
-      {snap.robots.map((r) => (
-        <HumanoidRobot
-          key={r.robotId}
-          robotId={r.robotId}
-          position={[r.position.x, r.position.y, r.position.z]}
-          heading={r.heading}
-          velocity={r.velocity}
-          state={r.state}
-          selected={r.robotId === selectedRobot}
-          carrying={r.carrying}
-        />
-      ))}
-      <GameCamera
-        target={target}
-        heading={selected?.heading ?? 0}
-        mode={cameraMode}
-        cinematicPhase={cinematicPhase}
-        mission={mission}
+  const snap = result ? snapshotAt(result, replayTime) : null;
+  const conditions = result?.config.conditions;
+  if (mission === "fire-rescue") {
+    return (
+      <FireRescueWorld
+        fire={snap?.world.fire}
+        obstacles={snap?.world.obstacles}
+        extinguisherPos={snap?.world.extinguisherPos}
+        hosePos={snap?.world.hosePos}
+        poses={poses}
+        quality={quality}
       />
-    </>
+    );
+  }
+  return (
+    <DeepMineWorld
+      deposits={
+        snap?.world.deposits ?? [
+          { id: "ore-alpha", position: { x: 22, y: 0.3, z: 36 }, quantityKg: 2, identified: false, extractedKg: 0 },
+          { id: "ore-decoy", position: { x: 18, y: 0.3, z: 34 }, quantityKg: 0.5, identified: false, extractedKg: 0 },
+        ]
+      }
+      lighting={conditions?.lighting ?? 0.7}
+      collectionPoint={snap?.world.collectionPoint}
+      obstacles={snap?.world.obstacles}
+      tunnelAccessibility={conditions?.tunnelAccessibility ?? 1}
+      quality={quality}
+    />
   );
 }
 
-function FreePlayScene({
-  mission,
-  selectedRobot,
-  cameraMode,
-  robots,
-  smokeDensity,
-  lighting,
+function PoseSampler({
+  result,
+  clock,
+  poses,
 }: {
-  mission: MissionId;
-  selectedRobot: RobotId;
-  cameraMode: CameraMode;
-  robots: LiveRobot[];
-  smokeDensity: number;
-  lighting: number;
+  result: ExperimentResult;
+  clock: { current: number };
+  poses: Map<RobotId, RobotPose>;
 }) {
-  const selected = robots.find((r) => r.robotId === selectedRobot) ?? robots[0];
+  useFrame(() => samplePoses(result, clock.current, poses), -1);
+  return null;
+}
+
+function Effects({ quality }: { quality: "high" | "low" }) {
+  const passes: ReactElement[] = [];
+  if (quality === "high") {
+    passes.push(<N8AO key="ao" halfRes aoRadius={1.6} intensity={2.4} distanceFalloff={1.2} quality="medium" />);
+  }
+  passes.push(
+    <Bloom key="bloom" mipmapBlur luminanceThreshold={1.1} luminanceSmoothing={0.25} intensity={0.85} radius={0.75} />,
+    <ToneMapping key="tm" mode={ToneMappingMode.ACES_FILMIC} />,
+    <SMAA key="smaa" />,
+    <Vignette key="vig" offset={0.22} darkness={0.62} />,
+    <Noise key="noise" opacity={0.035} blendFunction={BlendFunction.OVERLAY} />
+  );
   return (
-    <>
-      {mission === "fire-rescue" ? (
-        <FireRescueWorld
-          fire={{
-            position: { x: 28, y: 0.5, z: 12 },
-            intensity: 0.9,
-            spreadRate: 0.08,
-            smoke: smokeDensity,
-            suppressed: false,
-          }}
-          smokeDensity={smokeDensity}
-        />
-      ) : (
-        <DeepMineWorld
-          lighting={lighting}
-          deposits={[
-            {
-              id: "ore-alpha",
-              position: { x: 22, y: 0.3, z: 36 },
-              quantityKg: 2,
-              identified: false,
-              extractedKg: 0,
-            },
-          ]}
-          collectionPoint={{ x: 32, y: 0, z: 8 }}
-        />
-      )}
-      {robots.map((r) => (
-        <HumanoidRobot
-          key={r.robotId}
-          robotId={r.robotId}
-          position={r.position}
-          heading={r.heading}
-          velocity={r.velocity}
-          state={r.state}
-          selected={r.robotId === selectedRobot}
-          carrying={r.carrying}
-        />
-      ))}
-      <GameCamera
-        target={selected?.position ?? [0, 0, 0]}
-        heading={selected?.heading ?? 0}
-        mode={cameraMode}
-        mission={mission}
-      />
-    </>
+    <EffectComposer multisampling={0} enableNormalPass={false}>
+      {passes}
+    </EffectComposer>
   );
 }
 
-export function GameCanvas(props: GameCanvasProps) {
+function Scene(props: GameCanvasProps & { quality: "high" | "low" }) {
   const {
     mission,
     mode,
@@ -177,72 +129,133 @@ export function GameCanvas(props: GameCanvasProps) {
     cameraMode,
     result,
     replayTime = 0,
-    smokeDensity = 0.35,
-    lighting = 0.7,
+    replayClock,
     freeRobots,
     cinematicPhase = 0,
-    quality = "high",
+    quality,
+    onDirectorFocus,
+    focusRobot,
   } = props;
 
+  const ids: RobotId[] = result?.config.robotIds ?? freeRobots?.map((r) => r.robotId) ?? [...ROBOT_IDS];
+  const poses = useMemo(
+    () => new Map(ids.map((id) => [id, createPose(id)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ids.join(","), result?.config.id]
+  );
+
+  // Free play drives poses from React state rather than a recorded replay.
+  if (!result && freeRobots) {
+    for (const r of freeRobots) {
+      const p = poses.get(r.robotId);
+      if (!p) continue;
+      p.x = r.position[0];
+      p.y = r.position[1];
+      p.z = r.position[2];
+      p.heading = r.heading;
+      p.state = r.state;
+      p.carrying = r.carrying;
+    }
+  }
+
+  const fallbackClock = useRef(replayTime);
+  fallbackClock.current = replayTime;
+  const clock = replayClock ?? fallbackClock;
+
+  const snap = result ? snapshotAt(result, replayTime) : null;
+  const objective = useMemo(() => {
+    if (mission === "fire-rescue") {
+      const f = snap?.world.fire?.position ?? { x: 28, y: 0, z: 12 };
+      return new THREE.Vector3(f.x, 0, f.z);
+    }
+    const d = snap?.world.deposits?.find((x) => x.id === "ore-alpha");
+    const carrying = Array.from(poses.values()).some((p) => p.carrying);
+    const c = snap?.world.collectionPoint ?? { x: 32, y: 0, z: 8 };
+    return carrying || !d ? new THREE.Vector3(c.x, 0, c.z) : new THREE.Vector3(d.position.x, 0, d.position.z);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mission, snap]);
+
+  const followPose = poses.get(selectedRobot) ?? poses.values().next().value!;
+  const director = mode === "director";
+
+  return (
+    <>
+      {result && <PoseSampler result={result} clock={clock} poses={poses} />}
+      <MissionWorld mission={mission} result={result} replayTime={replayTime} poses={poses} quality={quality} />
+      {ids.map((id) => (
+        <HumanoidRobot
+          key={id}
+          robotId={id}
+          pose={poses.get(id)!}
+          selected={!director && id === selectedRobot}
+          headlamp={mission === "deep-mine"}
+          label={director && id === focusRobot}
+        />
+      ))}
+      {director ? (
+        <DirectorCamera mission={mission} poses={poses} objective={objective} onFocus={onDirectorFocus} />
+      ) : (
+        <GameCamera
+          follow={followPose}
+          mode={mode === "cinematic" ? "cinematic" : cameraMode}
+          cinematicPhase={cinematicPhase}
+          mission={mission}
+        />
+      )}
+      <Effects quality={quality} />
+    </>
+  );
+}
+
+export function GameCanvas(props: GameCanvasProps) {
+  const { mission, selectedRobot, quality = "high", mode } = props;
   return (
     <div className="relative h-full w-full bg-black">
       <Canvas
-        shadows={quality === "high"}
-        dpr={quality === "high" ? [1, 1.75] : [0.75, 1]}
-        camera={{ fov: 55, near: 0.1, far: 200, position: [0, 8, 16] }}
-        gl={{ antialias: quality === "high", powerPreference: "high-performance" }}
+        shadows="soft"
+        flat
+        dpr={quality === "high" ? [1, 2] : [0.75, 1]}
+        camera={{ fov: 50, near: 0.1, far: 4000, position: [-10, 8, -12] }}
+        gl={{ antialias: false, powerPreference: "high-performance", stencil: false }}
       >
         <Suspense fallback={null}>
-          {mode === "free-play" && freeRobots ? (
-            <FreePlayScene
-              mission={mission}
-              selectedRobot={selectedRobot}
-              cameraMode={cameraMode}
-              robots={freeRobots}
-              smokeDensity={smokeDensity}
-              lighting={lighting}
-            />
-          ) : result ? (
-            <ReplayScene
-              mission={mission}
-              result={result}
-              replayTime={replayTime}
-              selectedRobot={selectedRobot}
-              cameraMode={mode === "cinematic" ? "cinematic" : cameraMode}
-              smokeDensity={smokeDensity}
-              lighting={lighting}
-              cinematicPhase={cinematicPhase}
-            />
-          ) : (
-            <FireRescueWorld smokeDensity={0.3} />
-          )}
+          <Scene key={mission} {...props} quality={quality} />
         </Suspense>
       </Canvas>
-      <div className="pointer-events-none absolute left-4 top-4 rounded bg-black/60 px-3 py-1 text-xs tracking-widest text-white/80">
-        {mission === "fire-rescue" ? "FIRE RESCUE" : "DEEP MINE"} ·{" "}
-        {getRobot(selectedRobot).displayName}
-      </div>
+      <Loader
+        containerStyles={{ background: "#050505" }}
+        barStyles={{ background: "#e10600" }}
+        dataInterpolation={(p) => `LOADING WORLD ${p.toFixed(0)}%`}
+      />
+      {mode !== "director" && (
+        <div className="pointer-events-none absolute left-4 top-4 rounded bg-black/60 px-3 py-1 text-xs tracking-widest text-white/80">
+          {mission === "fire-rescue" ? "FIRE RESCUE" : "DEEP MINE"} · {getRobot(selectedRobot).displayName}
+        </div>
+      )}
     </div>
   );
 }
 
 /** Simple free-play WASD controller for the selected robot. */
-export function useFreePlayRobots(
-  mission: MissionId,
-  selected: RobotId,
-  enabled: boolean
-) {
+export function useFreePlayRobots(mission: MissionId, selected: RobotId, enabled: boolean) {
   const keys = useRef<Record<string, boolean>>({});
+  const spawn = (i: number): [number, number, number] =>
+    mission === "deep-mine" ? [0 + i * 1.6, 0, 8] : [-5 + i * 1.6, 0, -2];
   const [robots, setRobots] = useState<LiveRobot[]>(() =>
-    (["unitree-g1", "bd-atlas", "agibot-a2"] as RobotId[]).map((id, i) => ({
+    ROBOT_IDS.map((id, i) => ({
       robotId: id,
-      position: [ -5 + i * 2, 0, mission === "deep-mine" ? 8 : -2 ] as [number, number, number],
-      heading: 0,
+      position: spawn(i),
+      heading: Math.PI / 2,
       velocity: 0,
       state: "IDLE" as const,
       carrying: false,
     }))
   );
+
+  useEffect(() => {
+    setRobots((prev) => prev.map((r, i) => ({ ...r, position: spawn(i), heading: Math.PI / 2 })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mission]);
 
   useEffect(() => {
     if (!enabled) return;

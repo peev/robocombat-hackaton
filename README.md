@@ -1,5 +1,7 @@
 # RoboCombat BlackBox
 
+![RoboCombat BlackBox — firefighting humanoid carrying the Dell GB10 on-robot AI evaluation kit](docs/cover.jpg)
+
 **THE ULTIMATE TEST OF PHYSICAL AI.**
 
 Interactive 3D humanoid robot evaluation simulator for the hackathon demo. Robots perform Fire Rescue and Deep Mine missions; measured telemetry drives scoring and an autonomous local AI evaluator; NVIDIA GB10 hardware metrics are displayed when available.
@@ -29,8 +31,11 @@ npm test
 
 ## What works
 
-- **Fire Rescue** & **Deep Mine** missions with articulated humanoid robots (procedural walk)
-- Free play (WASD), autonomous missions, 3-robot compare, AI evaluation, demo button
+- **Fire Rescue** (container ship at sunset, ocean, engine-room fire with smoke, embers and extinguisher spray) & **Deep Mine** (rock tunnels, timber sets, rails, lamps, dust) missions
+- Skeletal-animated armoured humanoids carrying the Dell GB10 evaluation-kit backpack; walk/run/idle blended from real ground speed, task poses for spraying and hauling
+- PBR materials, HDRI lighting, soft shadows, ambient occlusion, bloom and ACES tone mapping
+- `START ROBOCOMBAT DEMO` is fully hands-off: robots run both missions on their own, an automatic director camera cuts between shots, the local LLM analyses results in the background, and a results screen closes it out
+- Free play (WASD), autonomous missions, 3-robot compare, AI evaluation
 - Deterministic seeded simulation engine (A* navigation, FSM tasks, fire/mine physics)
 - Scores from measured telemetry only
 - Live GPU panel via `nvidia-smi` when present (otherwise honest **N/A**)
@@ -53,11 +58,19 @@ npm test
 ## Local AI (GB10)
 
 ```bash
-# Example with Ollama
-ollama serve
-ollama pull llama3.2   # ask before large downloads
-export LOCAL_LLM_URL=http://127.0.0.1:11434
-export LOCAL_LLM_MODEL=llama3.2
+# Ollama on the GB10 GPU (gpt-oss:20b, ~14 GB)
+OLLAMA_FLASH_ATTENTION=1 OLLAMA_KEEP_ALIVE=-1 OLLAMA_NUM_PARALLEL=4 ollama serve
+ollama pull gpt-oss:20b
+```
+
+`.env.local` used on the GB10:
+
+```bash
+LOCAL_LLM_URL=http://127.0.0.1:11434
+LOCAL_LLM_MODEL=gpt-oss:20b
+LOCAL_LLM_THINK=low          # reasoning tokens count toward the output budget
+LOCAL_LLM_MAX_TOKENS=2048
+LOCAL_LLM_TIMEOUT_MS=120000
 ```
 
 Copy `.env.example` → `.env.local` for Discord / LLM settings. Never commit secrets.
@@ -97,3 +110,9 @@ Status: `GET /api/discord`, `GET /api/evaluate`.
 | Physical robot sensors | Interface stubbed for future BlackBox hardware |
 
 See [PROGRESS.md](./PROGRESS.md) for acceptance criteria.
+
+## Asset credits
+
+- HDRI sky and PBR textures: [Poly Haven](https://polyhaven.com) (CC0)
+- Humanoid rig and animations: `Xbot.glb` from the [three.js examples](https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf) (Mixamo)
+- Ocean normal map: three.js examples

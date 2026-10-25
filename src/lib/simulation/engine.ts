@@ -798,7 +798,8 @@ export function runExperiment(config: ExperimentConfig): ExperimentResult {
 
   // Build synchronized replay snapshots (interpolate by time index)
   const snapshots: SimulationSnapshot[] = [];
-  const steps = 40;
+  // ~2 samples per simulated second (matches the 0.5 s per-robot capture rate) so replays can interpolate smoothly
+  const steps = Math.min(400, Math.max(40, Math.ceil(durationSec * 2)));
   for (let i = 0; i <= steps; i++) {
     const t = (durationSec * i) / steps;
     const robots = perRobot.map((run) => {
@@ -814,6 +815,8 @@ export function runExperiment(config: ExperimentConfig): ExperimentResult {
         ...tel.position,
         x: tel.position.x + idx * 1.6,
       };
+      // Event logs live on the final snapshot; intermediate frames only need pose/state
+      tel.timeline = [];
       return tel;
     });
     snapshots.push({
