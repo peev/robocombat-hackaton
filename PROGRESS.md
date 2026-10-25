@@ -17,7 +17,7 @@ Updated during development. Do not claim untested features as complete.
 | 11 | Real NVIDIA GPU activity | **partial** | Live panel; N/A without nvidia-smi (this CI VM has no GPU) |
 | 12 | Local AI analyzes outcomes | **partial** | Wired to Ollama/compat; falls back to labeled heuristic if no model |
 | 13 | Agent requests another experiment | **complete** | Max 3 follow-ups, schema-validated |
-| 14 | NemoClaw / OpenClaw / OpenShell | **complete** | OpenClaw 2026.10.7 gateway as systemd service on the GB10, local `ollama/gpt-oss:20b`, `robocombat-lab` skill |
+| 14 | NemoClaw / OpenClaw / OpenShell | **complete** | OpenClaw gateway + NemoClaw `blackbox` OpenShell sandbox on the GB10; local `ollama/gpt-oss:20b`; host & sandboxed `robocombat-lab` skills; deny-by-default L7 policy |
 | 15 | Chat triggers evaluations | **complete** | Dashboard chat → OpenClaw agent → `/api/agent/run` → 3D replay; tested end to end. Discord channel not connected (optional) |
 | 18 | Always-on agent | **complete** | 15-min regression sweep automation + 30-min heartbeat; sweep → flags → shift report, verified unattended |
 | 16 | Results stored / comparable | **complete** | `data/experiments.json` + rankings |

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RoboCombat BlackBox — Pitch</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121820;
+      --ink: #e8eef5;
+      --muted: #9aabbc;
+      --accent: #e85d04;
+      --accent2: #3d9bfd;
+      --line: #243041;
+      --ok: #3dd68c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1a2a3a 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #2a1808 0%, transparent 50%),
+        var(--bg);
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    header strong { color: var(--ink); font-weight: 600; }
+    main {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+    }
+    .slide {
+      display: none;
+      width: min(960px, 100%);
+      min-height: min(560px, 72vh);
+      padding: 2.5rem 2.75rem;
+      background: linear-gradient(160deg, #141c26 0%, #0e141c 100%);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+    .slide.active { display: block; animation: in 280ms ease; }
+    @keyframes in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+    .slide::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: linear-gradient(var(--accent), var(--accent2));
+    }
+    h1 {
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+    h2 {
+      font-family: "IBM Plex Serif", Georgia, serif;
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      margin-bottom: 1.25rem;
+      letter-spacing: -0.01em;
+    }
+    .eyebrow {
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 0.85rem;
+    }
+    .lede {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 36rem;
+      line-height: 1.5;
+    }
+    ul { list-style: none; margin-top: 0.5rem; }
+    li {
+      padding: 0.55rem 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 1.05rem;
+      line-height: 1.4;
+    }
+    li span { color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-top: 1.25rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      padding: 1.1rem 1.2rem;
+    }
+    .card h3 {
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: 0.5rem;
+    }
+    .card p, .card li { font-size: 0.98rem; border: 0; padding: 0.25rem 0; color: var(--muted); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.98rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.65rem 0.4rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .mono {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 0.82rem;
+      color: var(--ok);
+      background: #0a1210;
+      border: 1px solid #1d3a2e;
+      padding: 1rem 1.1rem;
+      margin-top: 1rem;
+      white-space: pre-wrap;
+      line-height: 1.45;
+    }
+    .footnote {
+      margin-top: 1.5rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    footer {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      border-top: 1px solid var(--line);
+    }
+    button {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding: 0.55rem 1rem;
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.9rem;
+    }
+    button:hover { border-color: var(--accent2); color: #fff; }
+    #counter { color: var(--muted); min-width: 4rem; text-align: center; font-variant-numeric: tabular-nums; }
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+      .slide { padding: 1.5rem; min-height: auto; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header>
+    <div><strong>RoboCombat BlackBox</strong> · Pitch deck</div>
+    <div>Dell Pro Max GB10 · Local-only inference</div>
+  </header>
+  <main>
+    <section class="slide active" data-i="0">
+      <p class="eyebrow">Physical AI evaluation</p>
+      <h1>RoboCombat BlackBox</h1>
+      <p class="lede">A portable AI evaluation kit on the Dell Pro Max GB10. Today it stress-tests humanoids in a game-like critical-mission sim. The product is a real on-robot device for real evaluations in real-world fire, mine, and industrial environments — 100% local.</p>
+      <p class="footnote">Demo rankings = illustrative simulation · not verified hardware performance</p>
+    </section>
+
+    <section class="slide" data-i="1">
+      <p class="eyebrow">Problem</p>
+      <h2>Humanoids enter dangerous work. Evaluation is still manual.</h2>
+      <ul>
+        <li>Expert-scarce, sporadic testing before fire / mine / industrial deploy</li>
+        <li>Hard to compare vendors with reproducible critical missions</li>
+        <li>Cloud LLMs are a non-starter for IP-sensitive robot logs</li>
+        <li><span>Labs need a local BlackBox that independently evaluates robots — not a chat toy.</span></li>
+      </ul>
+    </section>
+
+    <section class="slide" data-i="2">
+      <p class="eyebrow">Product</p>
+      <h2>Real device destination · sim lab today</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Vision</h3>
+          <p>On-robot / deskside GB10 that runs real evaluations on real humanoids in real critical environments.</p>
+        </div>
+        <div class="card">
+          <h3>Hackathon demo</h3>
+          <p>Same always-on agent drives a game-like 3D sim of Fire Rescue &amp; Deep Mine so you can watch every test.</p>
+        </div>
+      </div>
+      <p class="footnote" style="margin-top:1.25rem">Robots: Unitree G1 · BD Atlas · AgiBot A2 Ultra · sweeps every 15 min · chat on demand</p>
+    </section>
+
+    <section class="slide" data-i="3">
+      <p class="eyebrow">Game / sim stack</p>
+      <h2>It looks like a game because evaluation must be watchable</h2>
+      <ul>
+        <li>Next.js + React lab dashboard (chat, leaderboard, GPU/AI panels)</li>
+        <li>React Three Fiber / Three.js — PBR worlds, skeletal humanoids, director camera</li>
+        <li>Deterministic engine — A*, FSM tasks, fire/mine physics, seeded runs</li>
+        <li>Scores from measured telemetry · sensor interface stubbed for real robots next</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-i="4">
+      <p class="eyebrow">Live demo path</p>
+      <h2>Show the agent working in the mission game</h2>
+      <ul>
+        <li>1 · Lab feed already has the last unattended sweep</li>
+        <li>2 · Ask: stress-test Deep Mine at max incline — who fails?</li>
+        <li>3 · BlackBox tools → measured scores → spoken verdict</li>
+        <li>4 · 3D mission view plays the experiment as evidence</li>
+        <li>5 · Switch to NemoClaw · OpenShell — field-device security model</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-i="5">
+      <p class="eyebrow">Architecture</p>
+      <h2>Local-first by construction</h2>
+      <div class="mono">Operator / Cron
+   → OpenClaw  —or—  NemoClaw + OpenShell sandbox
+   → Ollama gpt-oss:20b on GB10 GPU  (no cloud keys)
+   → robocombat-lab skill → /api/agent/*
+   → Deterministic sim  ←→  (future) real robot sensors
+   → 3D game viz + shift reports</div>
+      <p class="footnote">Sandbox policy: deny-by-default · only GET/POST /api/agent/** via curl</p>
+    </section>
+
+    <section class="slide" data-i="6">
+      <p class="eyebrow">Business value</p>
+      <h2>QA / certification infrastructure that ships with the robot</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Buyer</h3>
+          <p>Robotics OEMs, integrators, industrial safety labs</p>
+        </div>
+        <div class="card">
+          <h3>Job</h3>
+          <p>Independent evaluation on critical missions — before and during field deployment</p>
+        </div>
+      </div>
+      <ul style="margin-top:1rem">
+        <li>Catch failures before a robot walks into a fire or a mine · SKU comparisons · audit trail</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-i="7">
+      <p class="eyebrow">Why this track</p>
+      <h2>Mapped to the scorecard</h2>
+      <table>
+        <thead><tr><th>Criterion</th><th>Evidence</th></tr></thead>
+        <tbody>
+          <tr><td>Technical execution</td><td>Agent loop + real-time 3D mission game + tools/cron/reports</td></tr>
+          <tr><td>Usefulness</td><td>Sim lab today → real on-robot BlackBox tomorrow</td></tr>
+          <tr><td>Local-first</td><td>gpt-oss:20b on GB10 · host + OpenShell paths</td></tr>
+          <tr><td>Demo quality</td><td>Live mission game + real numbers from the agent</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="slide" data-i="8">
+      <p class="eyebrow">Close</p>
+      <h1>Ship the GB10 with the robots.</h1>
+      <p class="lede">Simulate the critical mission. Then evaluate it for real.</p>
+      <p class="footnote">github.com/peev/robocombat-hackaton · OpenClaw + NemoClaw + OpenShell · gpt-oss:20b local</p>
+    </section>
+  </main>
+  <footer>
+    <button type="button" id="prev" aria-label="Previous slide">← Prev</button>
+    <span id="counter">1 / 9</span>
+    <button type="button" id="next" aria-label="Next slide">Next →</button>
+  </footer>
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    let i = 0;
+    const counter = document.getElementById("counter");
+    function show(n) {
+      i = (n + slides.length) % slides.length;
+      slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
+      counter.textContent = (i + 1) + " / " + slides.length;
+    }
+    document.getElementById("prev").onclick = () => show(i - 1);
+    document.getElementById("next").onclick = () => show(i + 1);
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); show(i + 1); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); show(i - 1); }
+    });
+  </script>
+</body>
+</html>
