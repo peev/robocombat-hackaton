@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0a0a;
+  --panel: #121212;
+  --charcoal: #1a1a1a;
+  --red: #e10600;
+  --nvidia: #76b900;
+  --white: #f5f5f5;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--white);
+}
+
+body {
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), Impact, sans-serif;
+  font-weight: 700;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-sm border border-white/10 bg-[#121212]/95 p-3;
+    background-image: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.03),
+      transparent 40%
+    );
+  }
+
+  .panel-title {
+    @apply mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80;
+  }
+
+  .btn {
+    @apply rounded-sm border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-white/85 transition hover:border-white/30 hover:bg-white/10 disabled:opacity-40;
+  }
+
+  .btn-demo {
+    @apply rounded-sm border border-[#e10600] bg-[#e10600] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white shadow-[0_0_24px_rgba(225,6,0,0.35)] transition hover:bg-[#ff1a12] disabled:opacity-40;
+    animation: pulse-demo 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse-demo {
+  0%,
+  100% {
+    box-shadow: 0 0 18px rgba(225, 6, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(225, 6, 0, 0.55);
+  }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
