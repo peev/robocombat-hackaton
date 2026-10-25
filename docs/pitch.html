@@ -192,71 +192,75 @@
     <section class="slide active" data-i="0">
       <p class="eyebrow">Physical AI evaluation</p>
       <h1>RoboCombat BlackBox</h1>
-      <p class="lede">An always-on AI robot test engineer that lives on the Dell Pro Max GB10 — continuously benchmarking humanoids, investigating failures, and filing shift reports. 100% local.</p>
-      <p class="footnote">Illustrative simulation · not verified hardware performance</p>
+      <p class="lede">A portable AI evaluation kit on the Dell Pro Max GB10. Today it stress-tests humanoids in a game-like critical-mission sim. The product is a real on-robot device for real evaluations in real-world fire, mine, and industrial environments — 100% local.</p>
+      <p class="footnote">Demo rankings = illustrative simulation · not verified hardware performance</p>
     </section>
 
     <section class="slide" data-i="1">
       <p class="eyebrow">Problem</p>
-      <h2>Humanoids are entering dangerous work. Evaluation is still manual.</h2>
+      <h2>Humanoids enter dangerous work. Evaluation is still manual.</h2>
       <ul>
-        <li>Expert-scarce, sporadic regression testing</li>
-        <li>Hard to compare vendors with reproducible conditions</li>
+        <li>Expert-scarce, sporadic testing before fire / mine / industrial deploy</li>
+        <li>Hard to compare vendors with reproducible critical missions</li>
         <li>Cloud LLMs are a non-starter for IP-sensitive robot logs</li>
-        <li><span>Labs need a local, always-on test engineer — not another chat toy.</span></li>
+        <li><span>Labs need a local BlackBox that independently evaluates robots — not a chat toy.</span></li>
       </ul>
     </section>
 
     <section class="slide" data-i="2">
       <p class="eyebrow">Product</p>
-      <h2>BlackBox: the GB10 that never clocks out</h2>
+      <h2>Real device destination · sim lab today</h2>
       <div class="grid">
         <div class="card">
-          <h3>Always-on</h3>
-          <ul>
-            <li>Regression sweep every 15 min</li>
-            <li>Heartbeat every 30 min</li>
-            <li>Severity-tagged shift reports</li>
-          </ul>
+          <h3>Vision</h3>
+          <p>On-robot / deskside GB10 that runs real evaluations on real humanoids in real critical environments.</p>
         </div>
         <div class="card">
-          <h3>On demand</h3>
-          <ul>
-            <li>Operator chat → live experiment</li>
-            <li>Controlled one-variable follow-ups</li>
-            <li>Auto 3D replay of every run</li>
-          </ul>
+          <h3>Hackathon demo</h3>
+          <p>Same always-on agent drives a game-like 3D sim of Fire Rescue &amp; Deep Mine so you can watch every test.</p>
         </div>
       </div>
-      <p class="footnote" style="margin-top:1.25rem">Robots: Unitree G1 · BD Atlas · AgiBot A2 Ultra &nbsp;|&nbsp; Missions: Fire Rescue · Deep Mine</p>
+      <p class="footnote" style="margin-top:1.25rem">Robots: Unitree G1 · BD Atlas · AgiBot A2 Ultra · sweeps every 15 min · chat on demand</p>
     </section>
 
     <section class="slide" data-i="3">
-      <p class="eyebrow">Live demo path</p>
-      <h2>Show the agent working — not a slide about agents</h2>
+      <p class="eyebrow">Game / sim stack</p>
+      <h2>It looks like a game because evaluation must be watchable</h2>
       <ul>
-        <li>1 · Lab feed already has the last unattended sweep</li>
-        <li>2 · Ask: stress-test Deep Mine at max incline — who fails?</li>
-        <li>3 · BlackBox tools → measured scores → spoken verdict</li>
-        <li>4 · 3D view plays the experiment as evidence</li>
-        <li>5 · Switch to NemoClaw · OpenShell — same brain, locked network</li>
+        <li>Next.js + React lab dashboard (chat, leaderboard, GPU/AI panels)</li>
+        <li>React Three Fiber / Three.js — PBR worlds, skeletal humanoids, director camera</li>
+        <li>Deterministic engine — A*, FSM tasks, fire/mine physics, seeded runs</li>
+        <li>Scores from measured telemetry · sensor interface stubbed for real robots next</li>
       </ul>
     </section>
 
     <section class="slide" data-i="4">
+      <p class="eyebrow">Live demo path</p>
+      <h2>Show the agent working in the mission game</h2>
+      <ul>
+        <li>1 · Lab feed already has the last unattended sweep</li>
+        <li>2 · Ask: stress-test Deep Mine at max incline — who fails?</li>
+        <li>3 · BlackBox tools → measured scores → spoken verdict</li>
+        <li>4 · 3D mission view plays the experiment as evidence</li>
+        <li>5 · Switch to NemoClaw · OpenShell — field-device security model</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-i="5">
       <p class="eyebrow">Architecture</p>
       <h2>Local-first by construction</h2>
       <div class="mono">Operator / Cron
    → OpenClaw  —or—  NemoClaw + OpenShell sandbox
    → Ollama gpt-oss:20b on GB10 GPU  (no cloud keys)
    → robocombat-lab skill → /api/agent/*
-   → Deterministic sim + 3D viz + reports</div>
+   → Deterministic sim  ←→  (future) real robot sensors
+   → 3D game viz + shift reports</div>
       <p class="footnote">Sandbox policy: deny-by-default · only GET/POST /api/agent/** via curl</p>
     </section>
 
-    <section class="slide" data-i="5">
+    <section class="slide" data-i="6">
       <p class="eyebrow">Business value</p>
-      <h2>QA infrastructure companies pay for</h2>
+      <h2>QA / certification infrastructure that ships with the robot</h2>
       <div class="grid">
         <div class="card">
           <h3>Buyer</h3>
@@ -264,38 +268,38 @@
         </div>
         <div class="card">
           <h3>Job</h3>
-          <p>Continuous regression + incident investigation without a night-shift test team</p>
+          <p>Independent evaluation on critical missions — before and during field deployment</p>
         </div>
       </div>
       <ul style="margin-top:1rem">
-        <li>Unattended sweep hours · failures before field deploy · SKU comparisons · audit trail</li>
+        <li>Catch failures before a robot walks into a fire or a mine · SKU comparisons · audit trail</li>
       </ul>
     </section>
 
-    <section class="slide" data-i="6">
+    <section class="slide" data-i="7">
       <p class="eyebrow">Why this track</p>
       <h2>Mapped to the scorecard</h2>
       <table>
         <thead><tr><th>Criterion</th><th>Evidence</th></tr></thead>
         <tbody>
-          <tr><td>Technical execution</td><td>Full agent loop: tools, cron, chat, follow-ups, reports</td></tr>
-          <tr><td>Usefulness</td><td>Clear owner (lab lead), clear workflow, measurable flags</td></tr>
+          <tr><td>Technical execution</td><td>Agent loop + real-time 3D mission game + tools/cron/reports</td></tr>
+          <tr><td>Usefulness</td><td>Sim lab today → real on-robot BlackBox tomorrow</td></tr>
           <tr><td>Local-first</td><td>gpt-oss:20b on GB10 · host + OpenShell paths</td></tr>
-          <tr><td>Demo quality</td><td>Live 3D + real numbers from the agent</td></tr>
+          <tr><td>Demo quality</td><td>Live mission game + real numbers from the agent</td></tr>
         </tbody>
       </table>
     </section>
 
-    <section class="slide" data-i="7">
+    <section class="slide" data-i="8">
       <p class="eyebrow">Close</p>
       <h1>Ship the GB10 with the robots.</h1>
-      <p class="lede">Let Physical AI prove itself before it walks into a fire.</p>
+      <p class="lede">Simulate the critical mission. Then evaluate it for real.</p>
       <p class="footnote">github.com/peev/robocombat-hackaton · OpenClaw + NemoClaw + OpenShell · gpt-oss:20b local</p>
     </section>
   </main>
   <footer>
     <button type="button" id="prev" aria-label="Previous slide">← Prev</button>
-    <span id="counter">1 / 8</span>
+    <span id="counter">1 / 9</span>
     <button type="button" id="next" aria-label="Next slide">Next →</button>
   </footer>
   <script>
@@ -305,7 +309,7 @@
     function show(n) {
       i = (n + slides.length) % slides.length;
       slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
-      counter.textContent = `${i + 1} / ${slides.length}`;
+      counter.textContent = (i + 1) + " / " + slides.length;
     }
     document.getElementById("prev").onclick = () => show(i - 1);
     document.getElementById("next").onclick = () => show(i + 1);

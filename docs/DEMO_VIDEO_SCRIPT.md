@@ -10,12 +10,12 @@ Target length: **90–110 seconds**.
 
 | Time | Visual | Voice (tight) |
 |------|--------|----------------|
-| 0:00–0:08 | Cover / dashboard with GPU panel + “local gpt-oss:20b” | “BlackBox is an always-on robot test engineer on the Dell GB10. All inference is local — no cloud.” |
-| 0:08–0:22 | Agent activity feed showing a prior cron sweep + shift report | “Every 15 minutes it runs regression sweeps across G1, Atlas, and AgiBot, and files severity-tagged reports.” |
-| 0:22–0:55 | Type chat prompt → thinking → reply with numbers; 3D auto-plays | “Operator: stress-test Deep Mine at max incline. BlackBox calls lab tools, runs the sim, and answers with measured scores — watch the 3D replay.” |
-| 0:55–1:15 | Switch runtime to **NemoClaw · OpenShell sandbox**; quick ask or show policy deny clip | “Same agent inside NemoClaw OpenShell — deny-by-default, only lab APIs allowed.” |
-| 1:15–1:35 | Leaderboard / benchmark panel | “Labs get comparable scores and an audit trail of hypotheses to experiments to reports.” |
-| 1:35–1:50 | Closing frame: logo + repo URL | “RoboCombat BlackBox — ship the GB10 with the robots.” |
+| 0:00–0:10 | Cover / 3D mission world + GPU panel | “BlackBox is a portable AI evaluation kit on the Dell GB10. Today it tests humanoids in a game-like critical-mission sim — destination is real evaluations on real robots in the real world. All inference local.” |
+| 0:10–0:25 | Agent feed with prior cron sweep + shift report | “Every 15 minutes it sweeps G1, Atlas, and AgiBot on Fire Rescue and Deep Mine, and files severity-tagged reports.” |
+| 0:25–1:00 | Type chat → reply with numbers; 3D game auto-plays | “Operator asks for a Deep Mine stress test. BlackBox runs the mission sim like a game, answers with measured scores — watch the 3D replay.” |
+| 1:00–1:18 | Switch to **NemoClaw · OpenShell** | “Same agent sandboxed for a real field device — deny-by-default, only lab APIs.” |
+| 1:18–1:35 | Leaderboard | “Path: sim lab today, on-robot BlackBox tomorrow — comparable scores and an audit trail.” |
+| 1:35–1:50 | Closing frame | “RoboCombat BlackBox — ship the GB10 with the robots.” |
 
 ---
 

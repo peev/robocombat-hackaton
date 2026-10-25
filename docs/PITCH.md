@@ -1,6 +1,6 @@
 # RoboCombat BlackBox — Pitch Deck
 
-**Always-on AI robot test engineer · Dell Pro Max GB10 · 100% local**
+**Portable AI evaluation kit for humanoids · Dell Pro Max GB10 · 100% local**
 
 ---
 
@@ -9,9 +9,11 @@
 # RoboCombat BlackBox
 ### The ultimate test of Physical AI
 
-An always-on agent that lives on the GB10 and stress-tests humanoid robots like a tireless QA engineer.
+A portable, always-on evaluation device on the GB10.  
+Today: game-like critical-mission sims.  
+Destination: real evaluations of real humanoids in real-world fire, mine, and industrial environments.
 
-*Illustrative simulation — not verified hardware performance.*
+*Demo rankings are illustrative simulation — not verified hardware performance.*
 
 ---
 
@@ -21,16 +23,18 @@ Humanoid robots are shipping into dangerous work: fire, mines, industrial sites.
 
 Today’s evaluation is:
 - Manual, sporadic, and expert-scarce
-- Hard to reproduce across vendors
+- Hard to reproduce across vendors and sites
 - Too sensitive for cloud LLM pipelines (IP, safety logs, site data)
 
-Labs need a **local, always-on test engineer** — not another chat demo.
+Labs need a **local BlackBox** that independently tests robots on critical missions — not another chat demo.
 
 ---
 
-## 3. The product
+## 3. The product (vision → demo)
 
-**BlackBox** = OpenClaw agent on the Dell Pro Max GB10
+**Vision:** BlackBox is a real device (deskside or on-robot backpack GB10) that runs **real evaluations** in **real-world critical environments**.
+
+**Hackathon demo:** that same always-on agent drives a **game-like 3D sim lab** of Fire Rescue and Deep Mine so judges can see the loop live.
 
 | Always-on | On demand |
 |-----------|-----------|
@@ -38,22 +42,34 @@ Labs need a **local, always-on test engineer** — not another chat demo.
 | Heartbeat every 30 min | Controlled follow-ups |
 | Shift reports with severity | Live 3D replay of every run |
 
-Robots under test: **Unitree G1 · Boston Dynamics Atlas · AgiBot A2 Ultra**  
-Missions: **Fire Rescue · Deep Mine**
+Robots under test: **Unitree G1 · Boston Dynamics Atlas · AgiBot A2 Ultra**
 
 ---
 
-## 4. Demo story (what judges will see)
+## 4. The game / sim stack
 
-1. Lab screen is already alive — last sweep + report in the feed  
+What looks like a game is the evaluation environment:
+
+- **Next.js + React** lab dashboard  
+- **React Three Fiber / Three.js** — PBR worlds, skeletal humanoids, director camera  
+- **Deterministic headless engine** — A*, FSM tasks, fire/mine physics, seeded runs  
+- Scores from **measured telemetry** (complete, collisions, falls, energy) — agent never invents numbers  
+
+Path to hardware: stubbed sensor interface (camera / depth / IMU / pose) swaps sim observations for real robot data without replacing the agent.
+
+---
+
+## 5. Demo story (what judges will see)
+
+1. Lab screen is already alive — last unattended sweep + report  
 2. Operator: *“Stress test all three in Deep Mine at max incline — who fails and why?”*  
-3. BlackBox calls lab tools → runs sim → answers with **measured numbers**  
-4. 3D view auto-plays the experiment  
-5. Flip to **NemoClaw · OpenShell sandbox** — same agent, deny-by-default network policy  
+3. BlackBox calls lab tools → runs the mission sim → answers with **measured numbers**  
+4. 3D “game” view auto-plays the experiment as evidence  
+5. Flip to **NemoClaw · OpenShell** — same brain, deny-by-default network (field-device security model)
 
 ---
 
-## 5. Architecture (local-first)
+## 6. Architecture (local-first)
 
 ```
 Operator / Cron
@@ -64,44 +80,46 @@ OpenClaw  ──or──  NemoClaw + OpenShell sandbox
       ↓
 robocombat-lab skill → curl → /api/agent/*
       ↓
-Deterministic sim + 3D viz + shift reports
+Deterministic sim  ←→  (future) real robot sensors
+      ↓
+3D game viz + shift reports
 ```
 
 **No cloud LLM calls in the agent runtime path.**
 
 ---
 
-## 6. Business value
+## 7. Business value
 
 **Buyer:** robotics OEMs, integrators, and industrial safety labs  
-**Job-to-be-done:** continuous regression + incident investigation without hiring a night-shift test team  
+**Job-to-be-done:** continuous, independent evaluation of humanoids on critical missions — before and during field deployment  
 
 Measurable outcomes:
 - Hours of unattended sweeps per day
-- Failures caught before field deployment
+- Failures caught before a robot walks into a fire or a mine
 - Comparable scores across robot SKUs
 - Audit trail of hypotheses → experiments → reports
 
-**Would a company pay?** Yes — this is QA infrastructure next to the robots, not a toy chatbot.
+**Would a company pay?** Yes — this is QA / certification infrastructure that ships with the robot, not a toy chatbot.
 
 ---
 
-## 7. Why we win this track
+## 8. Why we win this track
 
 | Criterion | How we hit it |
 |-----------|----------------|
-| Technical execution | Full agent loop: tools, cron, chat, follow-ups, reports |
-| Usefulness | Clear owner (lab lead), clear workflow, measurable flags |
-| Local-first | `gpt-oss:20b` on GB10 via Ollama; host + sandbox paths |
-| Demo quality | Live 3D + real agent answers with numbers |
+| Technical execution | Full agent loop + real-time 3D mission game + tools/cron/reports |
+| Usefulness | Clear path: sim lab today → real on-robot BlackBox tomorrow |
+| Local-first | `gpt-oss:20b` on GB10; host + OpenShell paths |
+| Demo quality | Live “game” evidence + real agent numbers |
 
-Stack requirement: **OpenClaw + NemoClaw + OpenShell**
+Stack: **OpenClaw + NemoClaw + OpenShell**
 
 ---
 
-## 8. Ask / close
+## 9. Ask / close
 
 **RoboCombat BlackBox** — ship the GB10 with the robots.  
-Let Physical AI prove itself before it walks into a fire.
+Simulate the critical mission. Then evaluate it for real.
 
 Repo: https://github.com/peev/robocombat-hackaton
