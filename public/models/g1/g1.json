@@ -1,0 +1,433 @@
+{
+ "source": "unitreerobotics/unitree_ros g1_23dof (BSD-3-Clause)",
+ "pelvisHeight": 0.7922728974794127,
+ "offsets": {
+  "Spine2": [
+   0.0,
+   0.054,
+   -0.0039635
+  ],
+  "LeftUpLeg": [
+   0.064452,
+   -0.1027,
+   0.0
+  ],
+  "RightUpLeg": [
+   -0.064452,
+   -0.1027,
+   0.0
+  ],
+  "LeftLeg": [
+   0.0541489,
+   -0.3365957524222113,
+   -2.326096781007231e-06
+  ],
+  "RightLeg": [
+   -0.0541489,
+   -0.3365957524222113,
+   -2.326096781007231e-06
+  ],
+  "LeftFoot": [
+   -9.444499999999856e-05,
+   -0.30001,
+   0.0
+  ],
+  "RightFoot": [
+   9.444499999999856e-05,
+   -0.30001,
+   0.0
+  ],
+  "LeftArm": [
+   0.10022,
+   0.23778,
+   0.0039563
+  ],
+  "RightArm": [
+   -0.10021,
+   0.23778,
+   0.0039563
+  ],
+  "LeftForeArm": [
+   0.19226700056619686,
+   0.0,
+   0.01578167616289843
+  ],
+  "RightForeArm": [
+   -0.19226700056619686,
+   5.551115123125783e-17,
+   0.01578167616289843
+  ],
+  "LeftHand": [
+   0.10051463156686302,
+   -0.0006107742184232046,
+   3.469446951953614e-18
+  ],
+  "RightHand": [
+   -0.10051463156686302,
+   -0.000610774218423149,
+   3.469446951953614e-18
+  ]
+ },
+ "parts": [
+  {
+   "bone": "Hips",
+   "material": "dark",
+   "color": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "positions": [
+    0,
+    7653
+   ],
+   "indices": [
+    30612,
+    15909
+   ]
+  },
+  {
+   "bone": "Hips",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    94248,
+    13554
+   ],
+   "indices": [
+    148464,
+    30930
+   ]
+  },
+  {
+   "bone": "Spine2",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    272184,
+    33300
+   ],
+   "indices": [
+    405384,
+    73899
+   ]
+  },
+  {
+   "bone": "Spine2",
+   "material": "dark",
+   "color": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "positions": [
+    700980,
+    18534
+   ],
+   "indices": [
+    775116,
+    37374
+   ]
+  },
+  {
+   "bone": "LeftUpLeg",
+   "material": "dark",
+   "color": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "positions": [
+    924612,
+    3378
+   ],
+   "indices": [
+    938124,
+    6876
+   ]
+  },
+  {
+   "bone": "LeftUpLeg",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    965628,
+    9459
+   ],
+   "indices": [
+    1003464,
+    19854
+   ]
+  },
+  {
+   "bone": "LeftLeg",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    1082880,
+    11859
+   ],
+   "indices": [
+    1130316,
+    25290
+   ]
+  },
+  {
+   "bone": "LeftFoot",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    1231476,
+    759
+   ],
+   "indices": [
+    1234512,
+    1524
+   ]
+  },
+  {
+   "bone": "LeftFoot",
+   "material": "dark",
+   "color": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "positions": [
+    1240608,
+    7956
+   ],
+   "indices": [
+    1272432,
+    17958
+   ]
+  },
+  {
+   "bone": "LeftArm",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    1344264,
+    13131
+   ],
+   "indices": [
+    1396788,
+    29982
+   ]
+  },
+  {
+   "bone": "LeftForeArm",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    1516716,
+    2091
+   ],
+   "indices": [
+    1525080,
+    4176
+   ]
+  },
+  {
+   "bone": "LeftHand",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    1541784,
+    12477
+   ],
+   "indices": [
+    1591692,
+    25758
+   ]
+  },
+  {
+   "bone": "RightUpLeg",
+   "material": "dark",
+   "color": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "positions": [
+    1694724,
+    3363
+   ],
+   "indices": [
+    1708176,
+    6852
+   ]
+  },
+  {
+   "bone": "RightUpLeg",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    1735584,
+    9456
+   ],
+   "indices": [
+    1773408,
+    19842
+   ]
+  },
+  {
+   "bone": "RightLeg",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    1852776,
+    11868
+   ],
+   "indices": [
+    1900248,
+    25248
+   ]
+  },
+  {
+   "bone": "RightFoot",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    2001240,
+    759
+   ],
+   "indices": [
+    2004276,
+    1524
+   ]
+  },
+  {
+   "bone": "RightFoot",
+   "material": "dark",
+   "color": [
+    0.2,
+    0.2,
+    0.2,
+    1.0
+   ],
+   "positions": [
+    2010372,
+    7992
+   ],
+   "indices": [
+    2042340,
+    17922
+   ]
+  },
+  {
+   "bone": "RightArm",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    2114028,
+    13155
+   ],
+   "indices": [
+    2166648,
+    30042
+   ]
+  },
+  {
+   "bone": "RightForeArm",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    2286816,
+    2094
+   ],
+   "indices": [
+    2295192,
+    4176
+   ]
+  },
+  {
+   "bone": "RightHand",
+   "material": "white",
+   "color": [
+    0.7,
+    0.7,
+    0.7,
+    1.0
+   ],
+   "positions": [
+    2311896,
+    12489
+   ],
+   "indices": [
+    2361852,
+    25776
+   ]
+  }
+ ]
+}

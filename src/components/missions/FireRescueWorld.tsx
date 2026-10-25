@@ -527,44 +527,116 @@ function DeckDressing() {
 
 /* ------------------------------------------------------------- sprays */
 
+const HOSE_SEGMENTS = 48;
+
+/** Yellow attack line from the hydrant, laid along the deck, up into the robot's hands. */
+function HoseLine({ hydrant, pose }: { hydrant: THREE.Vector3; pose: RobotPose }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const curve = useMemo(() => new THREE.CatmullRomCurve3(Array.from({ length: 6 }, () => new THREE.Vector3()), false, "centripetal"), []);
+  useFrame(() => {
+    const m = mesh.current;
+    if (!m) return;
+    m.visible = !!pose.nozzle;
+    if (!pose.nozzle) return;
+    const tip = new THREE.Vector3(...pose.nozzle);
+    const body = new THREE.Vector3(pose.x, 0, pose.z);
+    const back = body.clone().sub(hydrant).setY(0).normalize();
+    const side = new THREE.Vector3(back.z, 0, -back.x);
+    const pts = curve.points;
+    pts[0].copy(hydrant).setY(0.55);
+    pts[1].copy(hydrant).addScaledVector(back, 1.2).setY(0.05);
+    pts[2].copy(hydrant).lerp(body, 0.55).addScaledVector(side, 0.8).setY(0.05);
+    pts[3].copy(body).addScaledVector(back, -1.1).addScaledVector(side, -0.4).setY(0.05);
+    pts[4].copy(body).addScaledVector(side, -0.25).setY(tip.y * 0.55);
+    pts[5].copy(tip).addScaledVector(back, -0.2);
+    const geo = new THREE.TubeGeometry(curve, HOSE_SEGMENTS, 0.032, 8, false);
+    m.geometry.dispose();
+    m.geometry = geo;
+  });
+  return (
+    <mesh ref={mesh} castShadow visible={false}>
+      <bufferGeometry />
+      <meshStandardMaterial color="#d6a514" roughness={0.6} metalness={0.05} />
+    </mesh>
+  );
+}
+
 function RobotSprays({
   poses,
   fireTarget,
+  hydrant,
+  suppression,
+  wetness,
 }: {
   poses: Map<RobotId, RobotPose>;
   fireTarget: THREE.Vector3;
+  hydrant: THREE.Vector3;
+  suppression: { current: number };
+  wetness: { current: number };
 }) {
   const ids = Array.from(poses.keys());
   const streams = useMemo(
-    () =>
-      new Map(
-        ids.map((id) => [id, { from: new THREE.Vector3(), to: new THREE.Vector3(), active: 0 }])
-      ),
+    () => new Map(ids.map((id) => [id, { from: new THREE.Vector3(), to: new THREE.Vector3(), active: 0 }])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ids.join(",")]
   );
   useFrame((_, dt) => {
+    let total = 0;
     for (const [id, s] of streams) {
       const p = poses.get(id);
       if (!p) continue;
       const h = getRobot(id).simulation.heightM;
-      if (p.nozzle) {
-        s.from.set(...p.nozzle);
-      } else {
-        const dir = new THREE.Vector3(fireTarget.x - p.x, 0, fireTarget.z - p.z).normalize();
-        s.from.set(p.x + dir.x * 0.55, h * 0.62, p.z + dir.z * 0.55);
-      }
-      s.to.copy(fireTarget);
-      const on = p.state === "SUPPRESSING" ? 1 : 0;
-      s.active += (on - s.active) * (1 - Math.exp(-dt * 6));
+      const toFire = new THREE.Vector3(fireTarget.x - p.x, 0, fireTarget.z - p.z).normalize();
+      if (p.nozzle) s.from.set(...p.nozzle);
+      else s.from.set(p.x + toFire.x * 0.55, h * 0.55, p.z + toFire.z * 0.55);
+      // Aim at the seat of the fire and sweep across it.
+      const across = new THREE.Vector3(toFire.z, 0, -toFire.x);
+      s.to.copy(fireTarget).addScaledVector(across, p.sweep).setY(0.35);
+      const on = p.state === "SUPPRESSING" && p.nozzle ? 1 : 0;
+      s.active += (on - s.active) * (1 - Math.exp(-dt * 5));
+      total += s.active;
     }
+    suppression.current = total;
+    wetness.current = Math.min(1, wetness.current + total * dt * 0.08);
   });
   return (
     <>
       {Array.from(streams.entries()).map(([id, s]) => (
         <Spray key={id} stream={s} />
       ))}
+      {ids.map((id) => (
+        <HoseLine key={id} hydrant={hydrant} pose={poses.get(id)!} />
+      ))}
     </>
+  );
+}
+
+/** Water pooling on the deck plates around the fire. */
+function WetDeck({ center, wetness }: { center: THREE.Vector3; wetness: { current: number } }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  useFrame(() => {
+    const w = wetness.current;
+    if (mesh.current) {
+      mesh.current.visible = w > 0.01;
+      mesh.current.scale.setScalar(0.6 + w * 3.4);
+    }
+    if (mat.current) mat.current.opacity = Math.min(0.75, w * 1.5);
+  });
+  return (
+    <mesh ref={mesh} position={[center.x - 1.2, 0.009, center.z - 0.8]} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+      <circleGeometry args={[1, 48]} />
+      <meshStandardMaterial
+        ref={mat}
+        color="#1a1d20"
+        roughness={0.06}
+        metalness={0.3}
+        transparent
+        opacity={0}
+        polygonOffset
+        polygonOffsetFactor={-3}
+      />
+    </mesh>
   );
 }
 
@@ -591,6 +663,9 @@ export function FireRescueWorld({
   const fz = fire?.position.z ?? 12;
   const intensity = fire ? (fire.suppressed ? 0 : fire.intensity) : 0.9;
   const fireTarget = useMemo(() => new THREE.Vector3(fx, 0.6, fz), [fx, fz]);
+  const hydrant = useMemo(() => new THREE.Vector3(hosePos.x + 0.8, 0.5, hosePos.z + 1.3), [hosePos.x, hosePos.z]);
+  const suppression = useRef(0);
+  const wetness = useRef(0);
   const sunPos = useMemo(() => SUN_DIR.clone().multiplyScalar(120).add(new THREE.Vector3(10, 0, 8)), []);
   const sunTarget = useMemo(() => {
     const o = new THREE.Object3D();
@@ -609,8 +684,11 @@ export function FireRescueWorld({
       <EngineRoom fx={fx} fz={fz} />
       <Equipment extinguisher={extinguisherPos} hose={hosePos} />
       <DeckDressing />
-      <Fire position={[fx, 0.05, fz]} intensity={intensity} quality={quality} />
-      {poses && <RobotSprays poses={poses} fireTarget={fireTarget} />}
+      <Fire position={[fx, 0.05, fz]} intensity={intensity} quality={quality} suppression={suppression} />
+      <WetDeck center={fireTarget} wetness={wetness} />
+      {poses && (
+        <RobotSprays poses={poses} fireTarget={fireTarget} hydrant={hydrant} suppression={suppression} wetness={wetness} />
+      )}
 
       <primitive object={sunTarget} />
       <directionalLight

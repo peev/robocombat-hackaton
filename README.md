@@ -114,5 +114,6 @@ See [PROGRESS.md](./PROGRESS.md) for acceptance criteria.
 ## Asset credits
 
 - HDRI sky and PBR textures: [Poly Haven](https://polyhaven.com) (CC0)
+- Unitree G1 body: official meshes from [unitreerobotics/unitree_ros](https://github.com/unitreerobotics/unitree_ros) (BSD-3-Clause, see `public/models/g1/LICENSE`), baked onto the rig by `scripts/build-g1-model.py`
 - Humanoid rig and animations: `Xbot.glb` from the [three.js examples](https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf) (Mixamo)
 - Ocean normal map: three.js examples

@@ -5,10 +5,9 @@ import { GameCanvas, useFreePlayRobots, type CanvasMode } from "@/components/gam
 import type { CameraMode } from "@/components/game/GameCamera";
 import type { DirectorFocus } from "@/components/game/DirectorCamera";
 import { GpuPanel } from "@/components/dashboard/GpuPanel";
-import { TelemetryPanel } from "@/components/dashboard/TelemetryPanel";
-import { AiPanel } from "@/components/dashboard/AiPanel";
+import { LivePerformance } from "@/components/dashboard/LivePerformance";
 import { Leaderboard } from "@/components/dashboard/Leaderboard";
-import type { ExperimentResult, MissionId, RobotTelemetry } from "@/lib/simulation/types";
+import type { ExperimentResult, MissionId } from "@/lib/simulation/types";
 import type { RobotId } from "@/lib/robots/profiles";
 import { ROBOT_IDS, getRobot, DISCLAIMER } from "@/lib/robots/profiles";
 
@@ -16,6 +15,9 @@ type PlayMode = "free-play" | "autonomous" | "compare" | "ai-evaluation" | "demo
 
 /** Simulated seconds per real second during playback. */
 const PLAYBACK_RATE: Record<MissionId, number> = { "fire-rescue": 2, "deep-mine": 3 };
+/** Demo timeline: 42 s per mission + 3 s transition + 3 s finale = 90 s from click to results. */
+const DEMO_MISSION_SEC = 42;
+const DEMO_GAP_MS = 3000;
 const DEMO_FIRE = { seed: 42, smokeDensity: 0.4 };
 const DEMO_MINE = { seed: 100, incline: 0.25 };
 
@@ -98,9 +100,6 @@ export function AppShell() {
   const [showIntro, setShowIntro] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [aiStatus, setAiStatus] = useState("Probing local inference…");
-  const [aiMode, setAiMode] = useState<string | null>(null);
-  const [analyses, setAnalyses] = useState<string[]>([]);
-  const [summary, setSummary] = useState("");
   const [batchInfo, setBatchInfo] = useState<string>("");
   const [quality, setQuality] = useState<"high" | "low">("high");
   const [demo, setDemo] = useState<DemoState | null>(null);
@@ -109,7 +108,9 @@ export function AppShell() {
   const demoRun = useRef(0);
 
   const demoActive = demo !== null;
-  const rate = PLAYBACK_RATE[mission];
+  // In the demo each mission replay is stretched/compressed to fill its fixed slot.
+  const rate =
+    demoActive && result ? result.durationSec / DEMO_MISSION_SEC : PLAYBACK_RATE[mission];
   const { clock, time: replayTime, seek } = useReplayClock(result, playing, paused && !demoActive, rate, () =>
     setPlaying(false)
   );
@@ -182,9 +183,6 @@ export function AppShell() {
     setPaused(false);
     setPlayMode("demo");
     setMission("fire-rescue");
-    setAnalyses([]);
-    setSummary("");
-    setAiMode(null);
     setDemo({ phase: "fire", fire: null, mine: null, aiReady: false });
     showCard();
     setAiStatus("Local AI analysing Fire Rescue telemetry…");
@@ -194,9 +192,6 @@ export function AppShell() {
       .then((r) => r.json())
       .then((data) => {
         if (run !== demoRun.current) return;
-        setAnalyses([...(data.fire?.analyses ?? []), ...(data.mine?.analyses ?? [])]);
-        setSummary([data.fire?.finalSummary, data.mine?.finalSummary].filter(Boolean).join(" "));
-        setAiMode(data.fire?.mode ?? null);
         const inf = data.fire?.inference;
         setAiStatus(
           inf?.realInference ? `Local LLM (${inf.provider}/${inf.model})` : "Heuristic fallback (no local LLM)"
@@ -228,13 +223,13 @@ export function AppShell() {
         setDemo((d) => (d ? { ...d, phase: "mine", mine } : d));
         showCard();
         startReplay(mine);
-      }, 2500);
+      }, DEMO_GAP_MS);
       return () => clearTimeout(id);
     }
     if (demo.phase === "mine") {
       const id = window.setTimeout(() => {
         if (run === demoRun.current) setDemo((d) => (d ? { ...d, phase: "done" } : d));
-      }, 2000);
+      }, DEMO_GAP_MS);
       return () => clearTimeout(id);
     }
   }, [demo, playing, result, replayTime, showCard, startReplay]);
@@ -264,9 +259,6 @@ export function AppShell() {
           });
           const data = await res.json();
           const report = data.report;
-          setAnalyses(report.analyses ?? []);
-          setSummary(report.finalSummary ?? "");
-          setAiMode(report.mode);
           setAiStatus(
             report.inference.realInference
               ? `Local LLM (${report.inference.provider})`
@@ -300,8 +292,6 @@ export function AppShell() {
             setRefreshKey((k) => k + 1);
           } else {
             startReplay(data.experiment);
-            setAnalyses([]);
-            setSummary("");
           }
         }
       } catch (e) {
@@ -312,9 +302,6 @@ export function AppShell() {
     },
     [mission, selectedRobot, startReplay]
   );
-
-  const liveRobots: RobotTelemetry[] = result?.final.robots ?? [];
-  const objectives = result?.final.robots.find((r) => r.robotId === selectedRobot)?.objectivesCompleted ?? [];
 
   const canvasMode: CanvasMode = demoActive
     ? "director"
@@ -459,9 +446,8 @@ export function AppShell() {
           )}
         </div>
 
-        <aside className="flex w-[340px] shrink-0 flex-col gap-2 overflow-y-auto border-l border-white/10 bg-[#0d0d0d] p-2">
-          <TelemetryPanel robots={liveRobots} missionProgress={objectives} />
-          <AiPanel status={aiStatus} analyses={analyses} summary={summary} mode={aiMode} />
+        <aside className="flex w-[380px] shrink-0 flex-col gap-2 overflow-y-auto border-l border-white/10 bg-[#0d0d0d] p-2">
+          <LivePerformance result={result} time={replayTime} />
           <GpuPanel />
           {!demoActive && (
             <div className="panel space-y-2">
@@ -497,7 +483,7 @@ export function AppShell() {
       </div>
 
       <footer className="shrink-0 border-t border-white/10 bg-[#0d0d0d] p-2">
-        <Leaderboard refreshKey={refreshKey} />
+        <Leaderboard refreshKey={refreshKey} result={result} time={replayTime} />
         <p className="mt-1 text-center text-[10px] text-white/30">{DISCLAIMER}</p>
         {!demoActive && (
           <p className="text-center text-[10px] text-white/25">
@@ -566,7 +552,7 @@ function DemoHud({
       {/* Top-right status */}
       <div className="absolute right-4 top-4 flex flex-col items-end gap-1.5">
         <span className="rounded-sm bg-black/60 px-2 py-1 text-[10px] uppercase tracking-[0.25em] text-white/80">
-          {card.title} · {rate}× speed
+          {card.title} · {rate.toFixed(1)}× speed
         </span>
         <span className="max-w-[320px] truncate rounded-sm bg-black/60 px-2 py-1 text-[10px] uppercase tracking-wider text-[#76b900]">
           {demo.aiReady ? "● " : "◌ "}

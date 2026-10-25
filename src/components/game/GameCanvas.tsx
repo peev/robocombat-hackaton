@@ -190,6 +190,7 @@ function Scene(props: GameCanvasProps & { quality: "high" | "low" }) {
           selected={!director && id === selectedRobot}
           headlamp={mission === "deep-mine"}
           label={director && id === focusRobot}
+          aimTarget={mission === "fire-rescue" ? objective : null}
         />
       ))}
       {director ? (

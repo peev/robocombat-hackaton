@@ -324,13 +324,17 @@ export function Fire({
   position,
   intensity,
   quality,
+  suppression,
 }: {
   position: [number, number, number];
   intensity: number;
   quality: "high" | "low";
+  /** 0..n strength of water currently landing on the fire. */
+  suppression?: { current: number };
 }) {
   // Smooth toward the simulated intensity so suppression reads as a gradual knock-down.
   const level = useRef(intensity);
+  const flameLevel = useRef(intensity);
   const steam = useRef(0);
   const light = useRef<THREE.PointLight>(null);
   const smokeStrength = useRef(intensity);
@@ -343,8 +347,11 @@ export function Fire({
     const prev = level.current;
     level.current += (target.current - level.current) * k;
     const knockdownRate = (prev - level.current) / Math.max(dt, 1e-4);
-    steam.current += (knockdownRate > 0.02 ? 1 : -0.25) * dt * 0.6;
-    steam.current = THREE.MathUtils.clamp(steam.current, 0, 1);
+    const water = Math.min(1, suppression?.current ?? 0);
+    steam.current += (knockdownRate > 0.02 || water > 0.05 ? 1 : -0.25) * dt * 0.6;
+    steam.current = THREE.MathUtils.clamp(Math.max(steam.current, water * 0.8 * Math.min(1, level.current * 3)), 0, 1);
+    // Water on the seat of the fire flattens the flames before the simulated intensity drops.
+    flameLevel.current = level.current * (1 - 0.5 * water) * (water > 0.05 ? 0.85 + Math.random() * 0.3 : 1);
     const l = Math.min(1.3, level.current);
     smokeStrength.current = Math.min(1, l * 1.1);
     glow.current = l;
@@ -375,7 +382,7 @@ export function Fire({
           width={f.w}
           height={f.h}
           offset={f.o}
-          intensity={level}
+          intensity={flameLevel}
         />
       ))}
       <Embers intensity={level} count={quality === "high" ? 220 : 90} />
@@ -415,68 +422,128 @@ export function Fire({
 
 /* ------------------------------------------------------------------- spray */
 
-const sprayVert = /* glsl */ `
+/**
+ * Ballistic hose stream. Each particle is launched from the nozzle with the velocity that
+ * carries it to the aim point under gravity (uVel, solved on the CPU), and breaks up from a
+ * coherent core into spreading droplets and mist as it travels.
+ */
+const jetVert = /* glsl */ `
 attribute float aSeed;
-uniform float uTime; uniform vec3 uFrom; uniform vec3 uTo; uniform float uActive;
-varying float vAlpha;
+uniform float uTime; uniform vec3 uFrom; uniform vec3 uVel; uniform float uFlight; uniform float uActive;
+uniform float uMist;
+varying float vAlpha; varying float vAge;
 void main(){
-  float t = fract(uTime * 1.6 + aSeed);
+  float rate = mix(1.8, 1.1, uMist);
+  float age = fract(uTime * rate + aSeed);
+  float t = age * uFlight * 1.05;
   vec3 jitter = vec3(fract(aSeed*91.7)-0.5, fract(aSeed*37.1)-0.5, fract(aSeed*53.3)-0.5);
-  vec3 p = mix(uFrom, uTo, t) + vec3(0.0, sin(t*3.14159) * 0.9, 0.0) + jitter * (0.1 + t*1.4);
+  vec3 p = uFrom + uVel * t + vec3(0.0, -4.9, 0.0) * t * t;
+  float breakup = pow(age, 1.6) * mix(0.35, 1.6, uMist);
+  p += jitter * breakup;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = (0.08 + t*0.45) * (300.0 / -mv.z);
-  vAlpha = uActive * (1.0 - t) * smoothstep(0.0, 0.05, t);
+  float size = mix(0.02 + age * 0.05, 0.12 + age * 0.9, uMist);
+  gl_PointSize = size * (320.0 / -mv.z);
+  vAge = age;
+  vAlpha = uActive * smoothstep(0.0, 0.03, age) * (1.0 - smoothstep(0.85, 1.0, age)) * mix(0.9, 0.22, uMist);
 }
 `;
 
-const sprayFrag = /* glsl */ `
-varying float vAlpha;
+const jetFrag = /* glsl */ `
+varying float vAlpha; varying float vAge;
 void main(){
   float d = length(gl_PointCoord - 0.5);
-  float a = smoothstep(0.5, 0.1, d) * vAlpha * 0.55;
-  gl_FragColor = vec4(vec3(0.92, 0.96, 1.0) * 1.6, a);
+  float a = smoothstep(0.5, 0.05, d) * vAlpha;
+  vec3 col = mix(vec3(0.85, 0.93, 1.0), vec3(0.95, 0.97, 1.0), vAge) * 1.5;
+  gl_FragColor = vec4(col, a);
 }
 `;
 
-/** Extinguishing agent stream; `from`/`to`/`active` are refreshed by the caller each frame. */
-export function Spray({
-  stream,
-}: {
-  stream: { from: THREE.Vector3; to: THREE.Vector3; active: number };
-}) {
-  const points = useMemo(() => {
-    const count = 260;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    const seeds = new Float32Array(count);
-    for (let i = 0; i < count; i++) seeds[i] = Math.random();
-    geo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
-    const mat = new THREE.ShaderMaterial({
-      vertexShader: sprayVert,
-      fragmentShader: sprayFrag,
-      uniforms: {
-        uTime: { value: 0 },
-        uFrom: { value: new THREE.Vector3() },
-        uTo: { value: new THREE.Vector3() },
-        uActive: { value: 0 },
-      },
-      transparent: true,
-      depthWrite: false,
+/** Droplets bursting up and out where the stream lands. */
+const splashVert = /* glsl */ `
+attribute float aSeed;
+uniform float uTime; uniform vec3 uTo; uniform float uActive;
+varying float vAlpha;
+void main(){
+  float age = fract(uTime * 2.2 + aSeed);
+  float ang = aSeed * 6.2831 * 7.0;
+  float spd = 1.2 + fract(aSeed * 13.7) * 2.2;
+  vec3 v = vec3(cos(ang) * spd, 2.0 + fract(aSeed * 5.3) * 2.5, sin(ang) * spd);
+  float t = age * 0.6;
+  vec3 p = uTo + v * t + vec3(0.0, -9.8, 0.0) * t * t * 0.5;
+  p.y = max(p.y, uTo.y - 0.5);
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * mv;
+  gl_PointSize = (0.04 + age * 0.12) * (320.0 / -mv.z);
+  vAlpha = uActive * (1.0 - age) * 0.7;
+}
+`;
+
+export interface SprayStream {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  active: number;
+}
+
+function makePoints(count: number, vert: string, frag: string, uniforms: Record<string, THREE.IUniform>) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+  const seeds = new Float32Array(count);
+  for (let i = 0; i < count; i++) seeds[i] = (i + Math.random()) / count;
+  geo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 1));
+  const p = new THREE.Points(
+    geo,
+    new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: frag, uniforms, transparent: true, depthWrite: false })
+  );
+  p.frustumCulled = false;
+  return p;
+}
+
+/** Hose stream; `from`/`to`/`active` are refreshed by the caller each frame. */
+export function Spray({ stream }: { stream: SprayStream }) {
+  const layers = useMemo(() => {
+    const shared = {
+      uFrom: { value: new THREE.Vector3() },
+      uVel: { value: new THREE.Vector3() },
+      uFlight: { value: 0.5 },
+      uActive: { value: 0 },
+    };
+    const core = makePoints(700, jetVert, jetFrag, { ...shared, uTime: { value: 0 }, uMist: { value: 0 } });
+    const mist = makePoints(260, jetVert, jetFrag, { ...shared, uTime: { value: 0 }, uMist: { value: 1 } });
+    const splash = makePoints(220, splashVert, jetFrag, {
+      uTime: { value: 0 },
+      uTo: { value: new THREE.Vector3() },
+      uActive: { value: 0 },
     });
-    const p = new THREE.Points(geo, mat);
-    p.frustumCulled = false;
-    return p;
+    return { shared, core, mist, splash };
   }, []);
+
   useFrame(({ clock }) => {
-    const u = (points.material as THREE.ShaderMaterial).uniforms;
-    u.uTime.value = clock.elapsedTime;
-    u.uFrom.value.copy(stream.from);
-    u.uTo.value.copy(stream.to);
-    u.uActive.value = stream.active;
-    points.visible = stream.active > 0.01;
+    const { shared, core, mist, splash } = layers;
+    const d = stream.to.clone().sub(stream.from);
+    const horiz = Math.hypot(d.x, d.z);
+    // Flight time for a ~16 m/s nozzle velocity; solve launch velocity that lands on target.
+    const T = Math.max(0.12, horiz / 16);
+    shared.uFlight.value = T;
+    shared.uFrom.value.copy(stream.from);
+    shared.uVel.value.set(d.x / T, (d.y + 4.9 * T * T) / T, d.z / T);
+    shared.uActive.value = stream.active;
+    for (const p of [core, mist, splash]) {
+      (p.material as THREE.ShaderMaterial).uniforms.uTime.value = clock.elapsedTime;
+      p.visible = stream.active > 0.01;
+    }
+    const su = (splash.material as THREE.ShaderMaterial).uniforms;
+    su.uTo.value.copy(stream.to);
+    su.uActive.value = stream.active;
   });
-  return <primitive object={points} />;
+
+  return (
+    <>
+      <primitive object={layers.core} />
+      <primitive object={layers.mist} />
+      <primitive object={layers.splash} />
+    </>
+  );
 }
 
 /* -------------------------------------------------------------------- dust */

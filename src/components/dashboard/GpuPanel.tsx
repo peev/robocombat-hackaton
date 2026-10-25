@@ -71,7 +71,7 @@ export function GpuPanel() {
   const util = metrics?.gpuUtilization;
 
   return (
-    <section className="panel flex flex-col gap-3">
+    <section className="panel flex flex-col gap-2">
       <header className="flex items-center justify-between">
         <h2 className="panel-title text-[#76b900]">NVIDIA GB10 LIVE COMPUTE</h2>
         <span className="text-[10px] uppercase tracking-wider text-white/40">
@@ -79,7 +79,8 @@ export function GpuPanel() {
         </span>
       </header>
 
-      <div className="relative mx-auto h-28 w-28">
+      <div className="flex items-center gap-3">
+      <div className="relative h-20 w-20 shrink-0">
         <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
           <circle
             cx="50"
@@ -104,35 +105,10 @@ export function GpuPanel() {
           <span className="text-2xl font-semibold text-white">
             {util == null ? "N/A" : `${Math.round(util)}%`}
           </span>
-          <span className="text-[9px] text-white/50">GPU UTIL</span>
+          <span className="text-[9px] text-white/50">GPU</span>
         </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <Metric label="Power" value={fmt(metrics?.gpuPowerW, " W")} />
-        <Metric label="Temp" value={fmt(metrics?.gpuTempC, " °C")} />
-        <Metric label="Clock" value={fmt(metrics?.gpuClockMhz, " MHz")} />
-        <Metric label="CPU" value={fmt(metrics?.cpuUtilization, "%")} />
-        <Metric
-          label="Unified Mem"
-          value={
-            metrics?.unifiedMemoryUsedGb != null
-              ? `${metrics.unifiedMemoryUsedGb}/${metrics.unifiedMemoryTotalGb} GB`
-              : "N/A"
-          }
-        />
-        <Metric
-          label="Infer Latency"
-          value={fmt(metrics?.inferenceLatencyMs, " ms")}
-        />
-        <Metric label="Tok/s" value={fmt(metrics?.tokensPerSecond)} />
-        <Metric
-          label="Evals / Active"
-          value={`${metrics?.completedEvaluations ?? 0} / ${metrics?.activeAiRequests ?? 0}`}
-        />
-      </div>
-
-      <div className="h-20 w-full">
+      <div className="h-20 min-w-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={history}>
             <XAxis dataKey="t" hide />
@@ -155,31 +131,26 @@ export function GpuPanel() {
           </LineChart>
         </ResponsiveContainer>
       </div>
-
-      <div className="max-h-24 overflow-y-auto border-t border-white/10 pt-2 text-[10px] text-white/60">
-        {timeline
-          .slice()
-          .reverse()
-          .slice(0, 8)
-          .map((e, i) => (
-            <div key={i} className="flex justify-between gap-2 py-0.5">
-              <span className="text-[#76b900]">{e.label}</span>
-              <span>{new Date(e.t).toLocaleTimeString()}</span>
-            </div>
-          ))}
-        {!timeline.length && <span>No experiment events yet.</span>}
       </div>
+
+      <div className="grid grid-cols-4 gap-1.5 text-xs">
+        <Metric label="W" value={fmt(metrics?.gpuPowerW == null ? null : Math.round(metrics.gpuPowerW))} />
+        <Metric label="°C" value={fmt(metrics?.gpuTempC)} />
+        <Metric label="tok/s" value={fmt(metrics?.tokensPerSecond == null ? null : Math.round(metrics.tokensPerSecond))} />
+        <Metric label="GB" value={fmt(metrics?.unifiedMemoryUsedGb == null ? null : Math.round(metrics.unifiedMemoryUsedGb))} />
+      </div>
+      {timeline.length > 0 && (
+        <p className="truncate text-[10px] text-[#76b900]">▸ {timeline[timeline.length - 1].label}</p>
+      )}
     </section>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded bg-white/5 px-2 py-1.5">
-      <div className="text-[9px] uppercase tracking-wide text-white/40">
-        {label}
-      </div>
-      <div className="font-mono text-white">{value}</div>
+    <div className="rounded-sm bg-white/5 px-1.5 py-1 text-center">
+      <div className="font-mono text-sm text-white">{value}</div>
+      <div className="text-[9px] uppercase tracking-wide text-white/40">{label}</div>
     </div>
   );
 }

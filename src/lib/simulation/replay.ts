@@ -16,10 +16,12 @@ export interface RobotPose {
   carrying: boolean;
   /** World position of the hose nozzle tip, written by the renderer while the nozzle is deployed. */
   nozzle: [number, number, number] | null;
+  /** Lateral sweep of the hose stream across the seat of the fire (m), driven by the renderer. */
+  sweep: number;
 }
 
 export function createPose(robotId: RobotId, x = 0, z = 0): RobotPose {
-  return { robotId, x, y: 0, z, heading: 0, state: "IDLE", carrying: false, nozzle: null };
+  return { robotId, x, y: 0, z, heading: 0, state: "IDLE", carrying: false, nozzle: null, sweep: 0 };
 }
 
 function snapshotIndex(snaps: SimulationSnapshot[], t: number): number {
