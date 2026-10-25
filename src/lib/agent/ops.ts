@@ -172,6 +172,7 @@ export interface OpenClawStatus {
   model: string | null;
   cronJobs: { name: string; schedule: string; enabled: boolean }[];
   heartbeatMinutes: number | null;
+  nemoclaw: boolean;
 }
 
 function readOpenClawConfig(): Record<string, unknown> | null {
@@ -240,19 +241,81 @@ export async function getOpenClawStatus(): Promise<OpenClawStatus> {
     model: cfg?.agents?.defaults?.model?.primary ?? null,
     cronJobs: installed ? await readCronJobs() : [],
     heartbeatMinutes: every ? parseInt(every, 10) || null : 30,
+    nemoclaw: nemoclawInstalled(),
   };
 }
 
-/** Send a chat turn to the always-on OpenClaw agent through its gateway. */
-export function chatWithAgent(message: string, sessionId = "robocombat-lab"): Promise<string> {
+export type AgentRuntime = "openclaw" | "nemoclaw";
+
+const NEMOCLAW_BIN = process.env.NEMOCLAW_BIN ?? path.join(HOME, ".local/bin/nemoclaw");
+const NEMOCLAW_SANDBOX = process.env.NEMOCLAW_SANDBOX ?? "blackbox";
+
+export function nemoclawInstalled(): boolean {
+  return fs.existsSync(NEMOCLAW_BIN);
+}
+
+/** NemoClaw prints preflight lines before the agent reply; keep only the reply. */
+function stripNemoclawPreamble(out: string): string {
+  return out
+    .split("\n")
+    .filter((l) => !/^\s*(Checking whether the Ollama model|Ollama model '.*' is already loaded)/.test(l))
+    .join("\n")
+    .trim();
+}
+
+/**
+ * Send a chat turn to the agent: either the host OpenClaw gateway, or the same
+ * agent inside the NemoClaw/OpenShell sandbox (network-policy restricted).
+ */
+let sandboxSession = `sandbox-${Date.now().toString(36)}`;
+
+export async function chatWithAgent(
+  message: string,
+  sessionId = "robocombat-lab",
+  runtime: AgentRuntime = "openclaw"
+): Promise<string> {
+  if (runtime !== "nemoclaw") return runAgentTurn(message, sessionId, runtime);
+  try {
+    return await runAgentTurn(message, sandboxSession, runtime);
+  } catch {
+    // A failed turn can leave a sandbox session unusable; retry once on a fresh one.
+    sandboxSession = `sandbox-${Date.now().toString(36)}`;
+    return runAgentTurn(message, sandboxSession, runtime);
+  }
+}
+
+function runAgentTurn(message: string, sessionId: string, runtime: AgentRuntime): Promise<string> {
+  const [cmd, args] =
+    runtime === "nemoclaw"
+      ? [
+          "sg",
+          [
+            "docker",
+            "-c",
+            [NEMOCLAW_BIN, NEMOCLAW_SANDBOX, "agent", "--session-id", sessionId, "-m", message]
+              .map((a) => `'${a.replace(/'/g, `'\\''`)}'`)
+              .join(" "),
+          ],
+        ]
+      : [OPENCLAW_BIN, ["agent", "--agent", OPENCLAW_AGENT, "--session-id", sessionId, "--thinking", "low", "-m", message]];
   return new Promise((resolve, reject) => {
     execFile(
-      OPENCLAW_BIN,
-      ["agent", "--agent", OPENCLAW_AGENT, "--session-id", sessionId, "--thinking", "low", "-m", message],
-      { timeout: 240_000, maxBuffer: 4 * 1024 * 1024, env: openclawEnv() },
+      cmd,
+      args,
+      {
+        timeout: 300_000,
+        maxBuffer: 4 * 1024 * 1024,
+        env: {
+          ...openclawEnv(),
+          PATH: `${path.dirname(NEMOCLAW_BIN)}:${openclawEnv().PATH}`,
+          NEMOCLAW_DISABLE_TELEMETRY: "1",
+        },
+      },
       (err, stdout, stderr) => {
-        if (err) return reject(new Error(stderr?.trim() || err.message));
-        resolve(stdout.trim());
+        if (err) return reject(new Error([stderr?.trim(), stdout?.trim(), err.message].filter(Boolean).join("\n")));
+        const reply = runtime === "nemoclaw" ? stripNemoclawPreamble(stdout) : stdout.trim();
+        if (runtime === "nemoclaw" && /^⚠️ .*(run failed|request failed)/m.test(reply)) return reject(new Error(reply));
+        resolve(reply);
       }
     );
   });

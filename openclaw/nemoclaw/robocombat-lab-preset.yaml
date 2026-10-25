@@ -1,0 +1,17 @@
+preset:
+  name: robocombat-lab
+  description: "RoboCombat lab API on the GB10 host (agent endpoints only)"
+
+network_policies:
+  robocombat-lab:
+    name: robocombat-lab
+    endpoints:
+      - host: host.openshell.internal
+        port: 3000
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: "/api/agent/**" }
+          - allow: { method: POST, path: "/api/agent/**" }
+    binaries:
+      - { path: /usr/bin/curl }

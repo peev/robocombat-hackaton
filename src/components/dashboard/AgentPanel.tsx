@@ -23,6 +23,7 @@ interface OpenClawStatus {
   model: string | null;
   cronJobs: { name: string; schedule: string; enabled: boolean }[];
   heartbeatMinutes: number | null;
+  nemoclaw: boolean;
 }
 
 export interface AgentRun {
@@ -61,6 +62,7 @@ export function AgentPanel({
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [runtime, setRuntime] = useState<"openclaw" | "nemoclaw">("openclaw");
   const seen = useRef<Set<string> | null>(null);
   const newRunsRef = useRef(onNewRuns);
   newRunsRef.current = onNewRuns;
@@ -116,7 +118,7 @@ export function AgentPanel({
       const res = await fetch("/api/agent/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, runtime }),
       });
       const data = await res.json();
       if (!data.ok) setError(data.error ?? "Agent error");
@@ -157,6 +159,31 @@ export function AgentPanel({
         </div>
       </div>
 
+      {status?.nemoclaw && (
+        <div className="flex gap-1 text-[9px] uppercase tracking-wider">
+          {(
+            [
+              ["openclaw", "OpenClaw · host"],
+              ["nemoclaw", "NemoClaw · OpenShell sandbox"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              disabled={!!thinking}
+              onClick={() => setRuntime(id)}
+              className={`flex-1 rounded-sm border px-1.5 py-1 ${
+                runtime === id
+                  ? "border-[#76b900] bg-[#76b900]/15 text-[#76b900]"
+                  : "border-white/10 text-white/50 hover:text-white/80"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <form
         className="flex gap-1"
         onSubmit={(e) => {
@@ -177,7 +204,8 @@ export function AgentPanel({
       </form>
       {thinking && (
         <p className="text-[10px] text-[#76b900]">
-          ◌ BlackBox is working on the GB10 (local gpt-oss)… {Math.round((Date.now() - thinking) / 1000)}s
+          ◌ BlackBox is working on the GB10 (local gpt-oss
+          {runtime === "nemoclaw" ? ", sandboxed by OpenShell" : ""})… {Math.round((Date.now() - thinking) / 1000)}s
         </p>
       )}
       {error && <p className="text-[10px] text-[#e10600]">{error}</p>}

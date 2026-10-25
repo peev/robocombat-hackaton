@@ -60,6 +60,34 @@ sudo loginctl enable-linger $USER               # keep the gateway running after
 Tool-search is disabled and the tool profile is `coding` so the local 20B model
 sees a small, explicit tool surface. That makes its tool calls reliable.
 
+### Sandboxed mode: NVIDIA NemoClaw + OpenShell
+
+The same BlackBox agent also runs inside a **NemoClaw sandbox** (`blackbox`):
+OpenClaw in an OpenShell container on the GB10 (sandbox GPU enabled, CUDA
+verified), with inference routed through NemoClaw's local proxy to the same
+Ollama `gpt-oss:20b`. The dashboard chat has a runtime switch: **OpenClaw ·
+host** or **NemoClaw · OpenShell sandbox**.
+
+The sandbox is deny-by-default. One custom preset
+([`openclaw/nemoclaw/robocombat-lab-preset.yaml`](openclaw/nemoclaw/robocombat-lab-preset.yaml))
+opens exactly `GET/POST /api/agent/**` on `host.openshell.internal:3000`, for
+`/usr/bin/curl` only. Everything else is blocked at L7, for example:
+
+```text
+$ nemoclaw blackbox exec -- curl http://host.openshell.internal:3000/api/robots
+{"detail":"GET host.openshell.internal:3000/api/robots denied by L7 policy","error":"policy_denied"}
+```
+
+```bash
+curl -fsSL https://www.nvidia.com/nemoclaw.sh -o nemoclaw.sh
+NEMOCLAW_AGENT=openclaw NEMOCLAW_PROVIDER=ollama NEMOCLAW_MODEL=gpt-oss:20b \
+NEMOCLAW_SANDBOX_NAME=blackbox NEMOCLAW_NON_INTERACTIVE=1 NEMOCLAW_YES=1 \
+NEMOCLAW_POLICY_MODE=suggested NEMOCLAW_ACCEPT_THIRD_PARTY_SOFTWARE=1 bash nemoclaw.sh
+nemoclaw blackbox skill install openclaw/nemoclaw/skills/robocombat-lab
+nemoclaw blackbox policy add --from-file openclaw/nemoclaw/robocombat-lab-preset.yaml --yes
+node scripts/sandbox-bridge.mjs &   # exposes the app only on the Docker bridge (172.18.0.1:3000)
+```
+
 ## Quick start
 
 ```bash
