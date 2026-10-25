@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ExperimentResult, RobotTelemetry } from "@/lib/simulation/types";
 import { getRobot } from "@/lib/robots/profiles";
 import { ROBOT_COLOR } from "./LivePerformance";
+import type { AgentVerdict } from "@/components/layout/AppShell";
 
 interface Metric {
   label: string;
@@ -37,7 +38,16 @@ function useCountUp(target: number, ms = 1200) {
 }
 
 /** End-of-mission scorecard comparing the three robots side by side. */
-export function MissionBenchmark({ result, index }: { result: ExperimentResult; index: number }) {
+export function MissionBenchmark({
+  result,
+  index,
+  verdict,
+}: {
+  result: ExperimentResult;
+  index: number;
+  /** Agent judgement; null while the OpenClaw agent is still thinking. */
+  verdict?: AgentVerdict | null;
+}) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setShown(true));
@@ -140,7 +150,23 @@ export function MissionBenchmark({ result, index }: { result: ExperimentResult; 
           })}
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3">
+        <div className="mt-4 flex items-center gap-3 border-t border-white/10 pt-3">
+          <span className="shrink-0 rounded-sm bg-[#76b900]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#76b900]">
+            BlackBox AI
+          </span>
+          {verdict ? (
+            <>
+              <p className="min-w-0 flex-1 truncate text-sm text-white/90">{verdict.verdict}</p>
+              <span className="shrink-0 rounded-sm border border-white/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white/60">
+                next test · {verdict.nextTest.label}
+              </span>
+            </>
+          ) : (
+            <p className="flex-1 animate-pulse text-sm text-white/40">analysing on GB10 (OpenClaw · gpt-oss)…</p>
+          )}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
           <p className="text-[11px] uppercase tracking-[0.35em] text-white/40">Mission winner</p>
           <p className="font-display text-3xl tracking-[0.1em]" style={{ color: ROBOT_COLOR[winner.robotId] }}>
             {getRobot(winner.robotId).displayName}

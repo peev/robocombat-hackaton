@@ -93,6 +93,7 @@ export function DirectorCamera({
   const state = useRef({
     mission: "" as MissionId | "",
     shotIdx: -1,
+    shot: "establish" as Shot,
     shotStart: 0,
     focus: null as RobotId | null,
     focusPos: new THREE.Vector3(),
@@ -117,16 +118,18 @@ export function DirectorCamera({
       s.shotIdx = -1;
       s.shotStart = s.elapsed - 1e3;
     }
-    const current = seq[Math.max(0, s.shotIdx) % seq.length];
-    if (s.shotIdx < 0 || s.elapsed - s.shotStart > SHOT_SECONDS[current]) {
+    const hauling = mission === "deep-mine" && ids.some((id) => poses.get(id)!.carrying);
+    if (s.shotIdx < 0 || s.elapsed - s.shotStart > SHOT_SECONDS[s.shot]) {
       s.shotIdx += 1;
       s.shotStart = s.elapsed;
       s.cut = true;
+      // During the ore haul keep the returning column in frame: haul cam alternating with front tracking.
+      s.shot = hauling ? (s.shotIdx % 2 === 0 ? "objective" : "front") : seq[s.shotIdx % seq.length];
       const busy = ids.filter((id) => ACTIVE_STATES.has(poses.get(id)!.state) && id !== s.focus);
       s.focus = busy.length ? busy[0] : ids[s.shotIdx % ids.length];
-      onFocus?.({ robotId: s.focus, shot: seq[s.shotIdx % seq.length] });
+      onFocus?.({ robotId: s.focus, shot: s.shot });
     }
-    const shot = seq[s.shotIdx % seq.length];
+    const shot = s.shot;
     const u = Math.min(1, (s.elapsed - s.shotStart) / SHOT_SECONDS[shot]);
     const pose = poses.get(s.focus ?? ids[0]) ?? poses.get(ids[0])!;
 
@@ -179,7 +182,7 @@ export function DirectorCamera({
         look.copy(p).addScaledVector(up, 1.05);
         break;
       case "side":
-        pos.copy(p).addScaledVector(right, mine ? 2.1 : 4.2).addScaledVector(fwd, -1.2 + u * 2.4).addScaledVector(up, 1.35);
+        pos.copy(p).addScaledVector(right, mine ? 1.3 : 4.2).addScaledVector(fwd, mine ? 2.2 + u * 1.2 : -1.2 + u * 2.4).addScaledVector(up, 1.35);
         look.copy(p).addScaledVector(up, 1).addScaledVector(fwd, 0.8);
         break;
       case "low":
@@ -193,6 +196,15 @@ export function DirectorCamera({
         break;
       }
       case "objective": {
+        const hauling = mine && ids.some((id) => poses.get(id)!.carrying);
+        if (hauling) {
+          // Ore haul: frame the column head-on, from the junction while they are still in the
+          // side tunnel, then from ahead in the main corridor once they have turned toward the hopper.
+          if (centroid.z > 11) pos.set(20.3, 2.3, 6.4);
+          else pos.set(Math.min(centroid.x + 7, 40), 2.1, 8.4);
+          look.copy(centroid).addScaledVector(up, 1.1);
+          break;
+        }
         const d = centroid.clone().sub(objective).setY(0).normalize();
         const side = new THREE.Vector3(d.z, 0, -d.x);
         pos.copy(objective).addScaledVector(d, mine ? -1.5 : -3.5).addScaledVector(side, mine ? 1.2 : 2.5).addScaledVector(up, mine ? 1.6 : 2.4);

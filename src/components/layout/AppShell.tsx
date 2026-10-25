@@ -28,6 +28,27 @@ interface DemoState {
   fire: ExperimentResult | null;
   mine: ExperimentResult | null;
   aiReady: boolean;
+  verdicts: Partial<Record<MissionId, AgentVerdict>>;
+}
+
+export interface AgentVerdict {
+  verdict: string;
+  nextTest: { label: string; mission: MissionId; conditions: Record<string, number>; why: string };
+  by: "openclaw" | "heuristic";
+  latencyMs: number;
+}
+
+async function requestVerdict(experimentId: string): Promise<AgentVerdict | null> {
+  try {
+    const res = await fetch("/api/agent/verdict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ experimentId }),
+    });
+    return res.ok ? ((await res.json()) as AgentVerdict) : null;
+  } catch {
+    return null;
+  }
 }
 
 const MISSION_CARD: Record<MissionId, { title: string; subtitle: string }> = {
@@ -239,7 +260,7 @@ export function AppShell() {
     setPaused(false);
     setPlayMode("demo");
     setMission("fire-rescue");
-    setDemo({ phase: "fire", fire: null, mine: null, aiReady: false });
+    setDemo({ phase: "fire", fire: null, mine: null, aiReady: false, verdicts: {} });
     showCard();
     setAiStatus("Local AI analysing Fire Rescue telemetry…");
 
@@ -261,11 +282,39 @@ export function AppShell() {
         if (run === demoRun.current) setAiStatus("AI evaluation failed");
       });
 
-    const fire = await fetchExperiment("fire-rescue", DEMO_FIRE);
+    const [fire, mine] = await Promise.all([
+      fetchExperiment("fire-rescue", DEMO_FIRE),
+      fetchExperiment("deep-mine", DEMO_MINE),
+    ]);
     if (run !== demoRun.current) return;
-    setDemo((d) => (d ? { ...d, fire } : d));
+    setDemo((d) => (d ? { ...d, fire, mine } : d));
     startReplay(fire);
+
+    // The OpenClaw agent judges both runs while they play, ready for each benchmark card.
+    for (const r of [fire, mine]) {
+      requestVerdict(r.config.id).then((v) => {
+        if (!v || run !== demoRun.current) return;
+        setDemo((d) => (d ? { ...d, verdicts: { ...d.verdicts, [r.config.mission]: v } } : d));
+      });
+    }
   }, [showCard, startReplay, clearAgentRuns]);
+
+  const runAgentTest = useCallback(
+    async (test: AgentVerdict["nextTest"]) => {
+      exitDemo();
+      await fetch("/api/agent/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mission: test.mission,
+          conditions: test.conditions,
+          hypothesis: `${test.label}: ${test.why}`,
+          source: "openclaw-chat",
+        }),
+      });
+    },
+    [exitDemo]
+  );
 
   // Advance demo phases: mission replay → benchmark scorecard → next mission.
   const demoRef = useRef(demo);
@@ -492,6 +541,7 @@ export function AppShell() {
               aiStatus={aiStatus}
               onExit={exitDemo}
               onReplay={startDemo}
+              onRunTest={runAgentTest}
             />
           )}
 
@@ -609,6 +659,7 @@ function DemoHud({
   aiStatus,
   onExit,
   onReplay,
+  onRunTest,
 }: {
   mission: MissionId;
   demo: DemoState;
@@ -620,6 +671,7 @@ function DemoHud({
   aiStatus: string;
   onExit: () => void;
   onReplay: () => void;
+  onRunTest: (t: AgentVerdict["nextTest"]) => void;
 }) {
   const card = MISSION_CARD[mission];
   const robot = focus ? getRobot(focus.robotId) : null;
@@ -665,8 +717,12 @@ function DemoHud({
         </div>
       )}
 
-      {demo.phase === "fire-bench" && demo.fire && <MissionBenchmark result={demo.fire} index={1} />}
-      {demo.phase === "mine-bench" && demo.mine && <MissionBenchmark result={demo.mine} index={2} />}
+      {demo.phase === "fire-bench" && demo.fire && (
+        <MissionBenchmark result={demo.fire} index={1} verdict={demo.verdicts["fire-rescue"] ?? null} />
+      )}
+      {demo.phase === "mine-bench" && demo.mine && (
+        <MissionBenchmark result={demo.mine} index={2} verdict={demo.verdicts["deep-mine"] ?? null} />
+      )}
 
       {/* Progress */}
       {(demo.phase === "fire" || demo.phase === "mine") && (
@@ -676,7 +732,7 @@ function DemoHud({
       )}
 
       {demo.phase === "done" && (
-        <DemoResults demo={demo} aiStatus={aiStatus} onExit={onExit} onReplay={onReplay} />
+        <DemoResults demo={demo} aiStatus={aiStatus} onExit={onExit} onReplay={onReplay} onRunTest={onRunTest} />
       )}
     </div>
   );
@@ -687,12 +743,17 @@ function DemoResults({
   aiStatus,
   onExit,
   onReplay,
+  onRunTest,
 }: {
   demo: DemoState;
   aiStatus: string;
   onExit: () => void;
   onReplay: () => void;
+  onRunTest: (t: AgentVerdict["nextTest"]) => void;
 }) {
+  const tests = (["fire-rescue", "deep-mine"] as const)
+    .map((m) => demo.verdicts[m])
+    .filter((v): v is AgentVerdict => !!v);
   const sections: { label: string; result: ExperimentResult | null }[] = [
     { label: "Fire Rescue", result: demo.fire },
     { label: "Deep Mine", result: demo.mine },
@@ -718,6 +779,29 @@ function DemoResults({
             </div>
           ))}
         </div>
+        {tests.length > 0 && (
+          <div className="mt-4 border-t border-white/10 pt-3">
+            <p className="mb-2 text-[11px] uppercase tracking-[0.25em] text-[#76b900]">BlackBox agent · next tests</p>
+            <div className="space-y-1.5">
+              {tests.map((v) => (
+                <div key={v.nextTest.mission} className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-white">{v.nextTest.label}</p>
+                    <p className="truncate font-mono text-[10px] text-white/40">
+                      {v.nextTest.mission === "fire-rescue" ? "FIRE" : "MINE"} ·{" "}
+                      {Object.entries(v.nextTest.conditions)
+                        .map(([k, n]) => `${k} ${Number(n).toFixed(2)}`)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  <button type="button" className="btn whitespace-nowrap" onClick={() => onRunTest(v.nextTest)}>
+                    Run test ▸
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="mt-4 text-[11px] text-white/50">{aiStatus}</p>
         <p className="mt-1 text-[10px] text-white/30">{DISCLAIMER}</p>
         <div className="mt-5 flex gap-2">
