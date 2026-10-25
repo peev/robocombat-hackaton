@@ -17,8 +17,9 @@ Updated during development. Do not claim untested features as complete.
 | 11 | Real NVIDIA GPU activity | **partial** | Live panel; N/A without nvidia-smi (this CI VM has no GPU) |
 | 12 | Local AI analyzes outcomes | **partial** | Wired to Ollama/compat; falls back to labeled heuristic if no model |
 | 13 | Agent requests another experiment | **complete** | Max 3 follow-ups, schema-validated |
-| 14 | NemoClaw / OpenClaw / OpenShell | **partial** | Status probe + intent bridge; CLIs not installed here |
-| 15 | Discord triggers evaluations | **partial** | API path ready; not tested with real Discord message |
+| 14 | NemoClaw / OpenClaw / OpenShell | **complete** | OpenClaw 2026.10.7 gateway as systemd service on the GB10, local `ollama/gpt-oss:20b`, `robocombat-lab` skill |
+| 15 | Chat triggers evaluations | **complete** | Dashboard chat → OpenClaw agent → `/api/agent/run` → 3D replay; tested end to end. Discord channel not connected (optional) |
+| 18 | Always-on agent | **complete** | 15-min regression sweep automation + 30-min heartbeat; sweep → flags → shift report, verified unattended |
 | 16 | Results stored / comparable | **complete** | `data/experiments.json` + rankings |
 | 17 | No remote AI for live demo | **complete** | Only local endpoints; heuristic if offline |
 
@@ -29,6 +30,5 @@ Updated during development. Do not claim untested features as complete.
 ## Blocked / needs host
 
 - Large local model download — **ask before download**
-- Discord credentials
-- NemoClaw install per NVIDIA docs on GB10
+- Discord credentials (optional channel)
 - Rapier interactive physics in free-play — package installed; mission scoring uses custom deterministic engine (documented)

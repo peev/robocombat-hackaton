@@ -4,9 +4,61 @@
 
 **THE ULTIMATE TEST OF PHYSICAL AI.**
 
-Interactive 3D humanoid robot evaluation simulator for the hackathon demo. Robots perform Fire Rescue and Deep Mine missions; measured telemetry drives scoring and an autonomous local AI evaluator; NVIDIA GB10 hardware metrics are displayed when available.
+**BlackBox is an always-on AI robot test engineer that lives on a Dell Pro Max GB10.**
+It is an [OpenClaw](https://docs.openclaw.ai) agent running 100% local inference
+(`gpt-oss:20b` on the GB10 GPU via Ollama, no cloud). Around the clock it runs
+regression sweeps on humanoid robots (Unitree G1, Boston Dynamics Atlas, AgiBot A2
+Ultra) in Fire Rescue and Deep Mine missions, catches failures, investigates them
+with controlled follow-up experiments, and files shift reports. Operators can
+ask it anything in chat, and every experiment it runs plays back live in a 3D
+simulator.
+
+![BlackBox agent run replaying live in 3D after an operator asked it to stress-test the robots](docs/agent-run.png)
 
 > **ILLUSTRATIVE SIMULATION, NOT VERIFIED HARDWARE PERFORMANCE.**
+
+## The always-on agent
+
+| | |
+|---|---|
+| Agent runtime | OpenClaw gateway, installed as a systemd user service (`openclaw-gateway`) |
+| Model | `ollama/gpt-oss:20b`, local on the GB10 GPU. No cloud keys configured anywhere. |
+| Always-on work | `RoboCombat regression sweep` automation every 15 min + OpenClaw heartbeat every 30 min |
+| On demand | Chat from the dashboard (or the OpenClaw Control UI / `openclaw agent`) |
+| Skill | [`openclaw/skills/robocombat-lab`](openclaw/skills/robocombat-lab/SKILL.md) |
+| Persona | [`openclaw/workspace/SOUL.md`](openclaw/workspace/SOUL.md), [`HEARTBEAT.md`](openclaw/workspace/HEARTBEAT.md) |
+| Lab API the agent drives | `/api/agent/run`, `/api/agent/sweep`, `/api/agent/report`, `/api/agent/brief` (compact plain-text digests sized for a local 20B model) |
+
+What a shift looks like:
+
+1. The scheduler wakes BlackBox. It calls `/api/agent/sweep`: every robot runs 3 stress profiles per mission (e.g. dense smoke, max incline + rough terrain).
+2. The sweep flags robots that fail or fall >15% below their running average.
+3. BlackBox writes a shift report with evidence and a severity (`info` / `warn` / `critical`) to the lab feed.
+4. Each run appears in the dashboard feed and auto-plays in 3D, so the lab screen always shows what the agent is doing.
+
+Example operator exchange (real output, local gpt-oss:20b):
+
+> **Operator:** Stress test all three robots in Deep Mine at max incline 0.6 with rough terrain 1.0. Which robots fail and why?
+>
+> **BlackBox:** Unitree G1 **pass** (score 70, energy left 22%). Boston Dynamics Atlas **fail** (complete = NO, energy 0%, 13 collisions). AgiBot A2 Ultra **fail** (complete = NO, energy 0%, 20 collisions). Atlas and A2 ran out of energy before the final objectives.
+
+### Set up the agent on a GB10
+
+```bash
+# Ollama with the local model
+OLLAMA_FLASH_ATTENTION=1 OLLAMA_KEEP_ALIVE=-1 ollama serve &
+ollama pull gpt-oss:20b
+
+# App
+npm install && npm run build && npm start      # http://localhost:3000
+
+# OpenClaw (Node >= 24): installs, onboards to local Ollama, installs skill + persona + automation
+./scripts/setup-openclaw.sh
+sudo loginctl enable-linger $USER               # keep the gateway running after logout
+```
+
+Tool-search is disabled and the tool profile is `coding` so the local 20B model
+sees a small, explicit tool surface. That makes its tool calls reliable.
 
 ## Quick start
 
@@ -75,17 +127,12 @@ LOCAL_LLM_TIMEOUT_MS=120000
 
 Copy `.env.example` → `.env.local` for Discord / LLM settings. Never commit secrets.
 
-## NemoClaw / OpenClaw / OpenShell / Discord
+## OpenClaw status
 
-See NVIDIA docs: https://docs.nvidia.com/nemoclaw/latest/user-guide/openclaw/get-started/quickstart
-
-Required env (when wiring Discord):
-
-- `DISCORD_BOT_TOKEN`
-- `DISCORD_CHANNEL_ID`
-- `LOCAL_LLM_URL` / `LOCAL_LLM_MODEL`
-
-Status: `GET /api/discord`, `GET /api/evaluate`.
+`GET /api/agent` returns gateway health, the configured model, the scheduled
+automations and the agent activity log. Chat channels (Discord, Slack, Telegram)
+can be attached with `openclaw channels`; the demo uses the dashboard chat and
+the OpenClaw Control UI.
 
 ## Architecture
 
@@ -95,7 +142,9 @@ Status: `GET /api/discord`, `GET /api/evaluate`.
 | `lib/simulation` | Headless deterministic experiments |
 | `lib/ai` | Local inference + autonomous follow-ups |
 | `lib/hardware` | nvidia-smi / system metrics |
-| `lib/nemo` | OpenClaw/Discord intent bridge |
+| `lib/agent` + `/api/agent/*` | OpenClaw agent bridge: lab tools, activity log, chat relay, 3D replay |
+| `openclaw/` | Skill, persona and heartbeat installed into the OpenClaw workspace |
+| `lib/nemo` | Legacy intent bridge / status probe |
 | `lib/sensors` | Future physical BlackBox observation interface |
 
 ## Real vs simulated vs planned
@@ -106,7 +155,8 @@ Status: `GET /api/discord`, `GET /api/evaluate`.
 | Manufacturer rankings | Simulated / illustrative only |
 | GPU metrics | Real when NVIDIA driver present |
 | AI analysis | Real local LLM when available; else labeled heuristic |
-| NemoClaw/Discord live | Prepared — needs install + credentials + test |
+| OpenClaw always-on agent | **Real**: gateway service, scheduled sweeps, chat, tested end to end on the GB10 |
+| Discord channel | Not connected (optional; OpenClaw supports it via `openclaw channels`) |
 | Physical robot sensors | Interface stubbed for future BlackBox hardware |
 
 See [PROGRESS.md](./PROGRESS.md) for acceptance criteria.

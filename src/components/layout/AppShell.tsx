@@ -496,7 +496,7 @@ export function AppShell() {
           )}
 
           {agentRun && result && !demoActive && (
-            <div className="pointer-events-none absolute left-6 top-6 z-10 max-w-[520px]">
+            <div className="pointer-events-none absolute left-6 top-14 z-10 max-w-[520px] bg-gradient-to-r from-black/70 to-transparent py-2 pl-3 pr-10">
               <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.4em] text-[#76b900]">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#76b900]" />
                 OpenClaw agent run ·{" "}
