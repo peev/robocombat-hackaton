@@ -22,10 +22,12 @@ Updated during development. Do not claim untested features as complete.
 | 18 | Always-on agent | **complete** | 15-min regression sweep automation + 30-min heartbeat; sweep → flags → shift report, verified unattended |
 | 16 | Results stored / comparable | **complete** | `data/experiments.json` + rankings |
 | 17 | No remote AI for live demo | **complete** | Only local endpoints; heuristic if offline |
+| 19 | Match Demo (investor/media) | **complete** | Zone-control match at `/match-demo`: arena, 2 teams × 2 robots, keyboard pilot control, AI opponents, broadcast HUD, winner screen |
 
-## Demo button
+## Demo buttons
 
-`START ROBOCOMBAT DEMO` → Fire Rescue AI eval + follow-up + Deep Mine eval. Uses real sim data throughout.
+- `START ROBOCOMBAT DEMO` → Fire Rescue AI eval + follow-up + Deep Mine eval. Uses real sim data throughout.
+- `MATCH DEMO` → Interactive zone-control match demo for investor/media presentations. See [docs/MATCH_DEMO.md](./docs/MATCH_DEMO.md).
 
 ## Blocked / needs host
 

@@ -112,6 +112,7 @@ npm test
 ## What works
 
 - **Fire Rescue** (container ship at sunset, ocean, engine-room fire with smoke, embers and extinguisher spray) & **Deep Mine** (rock tunnels, timber sets, rails, lamps, dust) missions
+- **Match Demo** — Interactive zone-control match for investor/media demonstrations (see [docs/MATCH_DEMO.md](./docs/MATCH_DEMO.md))
 - Skeletal-animated armoured humanoids carrying the Dell GB10 evaluation-kit backpack; walk/run/idle blended from real ground speed, task poses for spraying and hauling
 - PBR materials, HDRI lighting, soft shadows, ambient occlusion, bloom and ACES tone mapping
 - `START ROBOCOMBAT DEMO` is fully hands-off: robots run both missions on their own, an automatic director camera cuts between shots, the local LLM analyses results in the background, and a results screen closes it out
@@ -122,6 +123,25 @@ npm test
 - Local LLM evaluator (Ollama / OpenAI-compatible); heuristic fallback if unavailable — never fakes AI text
 - Leaderboard persistence under `data/`
 - Discord/NemoClaw integration **prepared** (env vars); not marked complete until a real Discord round-trip
+
+## Match Demo
+
+The **Match Demo** (`/match-demo`) is an interactive demonstration designed for investor/media presentations. A new viewer can understand it in a 2-3 minute live demo.
+
+```bash
+npm run dev
+# Open http://localhost:3000/match-demo
+```
+
+Features:
+- Zone-control objective with 3 scoring zones
+- Two teams of 2 humanoid robots each
+- Keyboard controls to pilot one robot (WASD, Shift to sprint, C to change camera)
+- AI-controlled teammates and opponents
+- Broadcast-style HUD (score bug, timer, telemetry)
+- Winner screen with match stats
+
+See [docs/MATCH_DEMO.md](./docs/MATCH_DEMO.md) for full documentation.
 
 ## Controls
 
