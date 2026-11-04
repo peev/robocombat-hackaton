@@ -49,6 +49,10 @@ body {
     @apply rounded-sm border border-[#e10600] bg-[#e10600] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white shadow-[0_0_24px_rgba(225,6,0,0.35)] transition hover:bg-[#ff1a12] disabled:opacity-40;
     animation: pulse-demo 2.4s ease-in-out infinite;
   }
+
+  .btn-match {
+    @apply rounded-sm border border-[#0066cc] bg-[#0066cc]/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-white shadow-[0_0_16px_rgba(0,102,204,0.35)] transition hover:bg-[#0077ee] disabled:opacity-40;
+  }
 }
 
 @keyframes pulse-demo {

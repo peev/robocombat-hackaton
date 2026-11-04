@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { GameCanvas, useFreePlayRobots, type CanvasMode } from "@/components/game/GameCanvas";
 import type { CameraMode } from "@/components/game/GameCamera";
 import type { DirectorFocus } from "@/components/game/DirectorCamera";
@@ -490,6 +491,9 @@ export function AppShell() {
             <button type="button" className="btn" disabled={busy} onClick={() => runExperiment("ai-evaluation")}>
               AI Eval
             </button>
+            <Link href="/match-demo" className="btn-match">
+              MATCH DEMO
+            </Link>
             <button type="button" className="btn-demo" disabled={busy} onClick={startDemo}>
               START ROBOCOMBAT DEMO
             </button>
@@ -504,6 +508,12 @@ export function AppShell() {
               <h1 className="font-display text-5xl tracking-[0.2em] text-white md:text-7xl">ROBOCOMBAT</h1>
               <p className="mt-2 text-sm tracking-[0.45em] text-[#e10600] md:text-base">BLACKBOX</p>
               <p className="mt-4 max-w-md text-center text-sm text-white/70">THE ULTIMATE TEST OF PHYSICAL AI.</p>
+              <Link
+                href="/match-demo"
+                className="pointer-events-auto mt-6 rounded border border-[#0066cc]/50 bg-[#0066cc]/20 px-4 py-2 text-xs uppercase tracking-wider text-[#4da6ff] transition hover:bg-[#0066cc]/30"
+              >
+                TRY MATCH DEMO →
+              </Link>
             </div>
           )}
           {paused && !demoActive && (
